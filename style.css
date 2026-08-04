@@ -730,28 +730,28 @@ button:disabled {
     text-decoration: underline;
     color: #7ab8f5;
 }
-.requote-btn {
-    margin-left: 10px;
-}
 .requote-btn:hover {
     color: #7ab8f5 !important;
 }
 
-.tweet-header {
+.tweet-meta-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     margin-bottom: 0;
-    overflow: visible;
+    overflow: hidden;
     padding-bottom: 3px; /* 名前のディセンダークリッピング防止 */
 }
-.tweet strong {
+.tweet-username {
     font-size: 22px;
-    font-weight: normal; /* <strong>のデフォルトboldを解除（合成ボールドで潰れて見える対策） */
-    white-space: nowrap;
+    font-weight: normal;
+    font-family: 'GenZenGothicKaiC', sans-serif;
+    color: #fff;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    white-space: nowrap;
+    min-width: 0; /* flexアイテムを縮められるようにする（無いと省略が効かない） */
+    flex-shrink: 1;
     padding-bottom: 4px; /* ディセンダークリッピング防止 */
 }
 .tweet p {
@@ -789,29 +789,23 @@ button:disabled {
     display: block;
     text-align: right;
 }
-.tweet-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0;
-}
-.tweet .actions button {
+.tweet-meta-row .reaction-btn,
+.tweet-meta-row .requote-btn {
     font-size: 24px;
     background: transparent;
     color: #ccc;
     border: none;
     cursor: pointer;
     padding: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
-.timestamp {
+.tweet-meta-timestamp {
     font-size: 24px;
     color: #aaa;
-    text-align: right;
     font-family: 'k8x12S', sans-serif;
-}
-/* ドット投稿でも日時は通常フォント */
-.dot-font .timestamp {
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 

@@ -72,7 +72,6 @@ function limitComments() {
   function updateTweetDisplay(tweetElement, tweetData) {
     const tweetTextElement = tweetElement.querySelector('.tweet-text-content');
     const toggleButton = tweetElement.querySelector('.toggle-text-button');
-    const tweetFooter = tweetElement.querySelector('.tweet-footer');
 
     if (!tweetTextElement) {
         console.warn("tweetTextElement not found for tweet key:", tweetElement.getAttribute('data-key'));
@@ -402,22 +401,19 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
     const textContentHtml = isQuoteOnly ? '' : `<div class="tweet-text-content size-${data.size || 'medium'}${textContentExtraClass}" ${pStyle}>${commentContentHtml}</div>`;
 
     div.innerHTML = `
-    <div class="tweet-header">
-        <strong><span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span> @${displayUserName}</strong>
+    <div class="tweet-meta-row">
+        <span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span>
+        <span class="tweet-username">@${displayUserName}</span>
+        <span class="tweet-meta-timestamp">${formattedTime}</span>
+        <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
+            👍️ ${reactionCount}
+        </button>
+        <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
     </div>
     ${quoteCardHtml}
     ${textContentHtml}
     <div class="log-actions" style="display: ${(isOverFlow && !isQuoteOnly) ? 'flex' : 'none'};">
         <button class="toggle-log-btn">もっと見る</button>
-    </div>
-    <div class="tweet-footer">
-        <div class="actions">
-            <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
-                👍️ ${reactionCount}
-            </button>
-            <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
-        </div>
-        <div class="timestamp">${formattedTime}</div>
     </div>
 `;
 
@@ -435,7 +431,7 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
         div.style.display = 'block';
     }
 
-    const reactionBtn = div.querySelector(".actions .reaction-btn");
+    const reactionBtn = div.querySelector(".tweet-meta-row .reaction-btn");
     if (reactionBtn) {
         // いいねの実処理（Firebaseへの反映）は firebase.js の toggleReaction() が担当する
         reactionBtn.onclick = () => toggleReaction(key, data);
