@@ -47,16 +47,16 @@ utils.js → layout.js → ranking.js → settings.js → timeline.js → commen
 
 ## 公開URLとリポジトリ
 
-- **公開ページ（GitHub Pages）**: `https://kumasoutakun-dotcom.github.io/nicotwibukka/` あたりのURL（正確なURLはリポジトリのSettings → Pagesで確認）
-- **リポジトリ**: `https://github.com/kumasoutakun-dotcom/nicotwibukka`
-- **不具合・要望**: `https://github.com/kumasoutakun-dotcom/nicotwibukka/issues`
+- **公開ページ（GitHub Pages）**: `https://omochinomocchili.github.io/nicotwi-bukka/` あたりのURL（正確なURLはリポジトリのSettings → Pagesで確認）
+- **リポジトリ**: `https://github.com/omochinomocchili/nicotwi-bukka`
+- **不具合・要望**: `https://github.com/omochinomocchili/nicotwi-bukka/issues`
 
 ## Firebaseの使い方（＝管理画面）
 
 このアプリには専用の「管理画面」はありません。**Firebaseコンソールが実質的な管理画面**です。
 
 - **アクセス方法**: [https://console.firebase.google.com/](https://console.firebase.google.com/) にアクセス → プロジェクト `nicotwibukka` を選択 → 左メニューの「Realtime Database」
-- ログインには、このプロジェクトのFirebaseに招待されたGoogleアカウントが必要です。**引き継ぎ時に必ず次の代のアカウントを「共同編集者」としてFirebaseコンソールに追加してください**（Firebaseコンソール右上の歯車 → プロジェクトの設定 → ユーザーと権限）。
+- ログインには、Googleアカウント **omochinomocchili@gmail.com**（このプロジェクトのFirebaseに招待済み）が必要です。**引き継ぎ時に必ず次の代のアカウントを「共同編集者」としてFirebaseコンソールに追加してください**（Firebaseコンソール右上の歯車 → プロジェクトの設定 → ユーザーと権限）。
 
 ### データ構造
 
@@ -174,7 +174,7 @@ Firebaseの無料プラン（Sparkプラン）には読み取り/書き込み回
 
 ### 簡単な方法（Webブラウザだけで完結）
 
-1. `https://github.com/kumasoutakun-dotcom/nicotwibukka` を開く
+1. `https://github.com/omochinomocchili/nicotwi-bukka` を開く
 2. 直したいファイル（例: `style.css`）をクリック
 3. 右上の鉛筆アイコン（Edit this file）をクリック
 4. 中身を書き換える、または全選択して丸ごと貼り替える
@@ -183,7 +183,7 @@ Firebaseの無料プラン（Sparkプラン）には読み取り/書き込み回
 ### gitコマンドに慣れている場合
 
 ```bash
-git clone https://github.com/kumasoutakun-dotcom/nicotwibukka.git
+git clone https://github.com/omochinomocchili/nicotwi-bukka.git
 cd nicotwibukka
 # ファイルを編集
 git add .
