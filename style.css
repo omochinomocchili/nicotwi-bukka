@@ -1,0 +1,1180 @@
+/* =============================================================
+   0. ローディングオーバーレイ
+   ============================================================= */
+
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100dvw;
+    height: 100dvh;
+    background: rgba(10, 27, 42, 0.85);
+    z-index: 9999;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    color: #fff;
+}
+#loadingOverlay.hidden {
+    display: none;
+}
+
+/* =============================================================
+   1. ベース・レイアウト
+   ============================================================= */
+
+html {
+    background: #0a1b2a;
+}
+body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* モバイルのアドレスバー等でvhとの誤差が出ても隙間ができないように */
+    overflow: hidden;
+    background: #0a1b2a; /* スクロール時などに下に隙間が見えても白飛びしないようにする保険 */
+    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-size: 24px;
+    transform-origin: 0 0;
+    transform: scale(1);
+    box-sizing: border-box;
+}
+
+/* ドット投稿：美咲ゴシック第2フォント */
+.dot-font {
+    font-family: 'k8x12S', sans-serif !important;
+}
+
+#container {
+    display: flex;
+    flex-direction: row;
+    background: #0a1b2a;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+    position: relative;
+}
+
+@media (max-aspect-ratio: 1/1) {
+    #container { flex-direction: column; }
+    #nicoArea { flex: 2; }
+    #twiArea { flex: 1; }
+    .tweet { font-size: 33px; } /* 縦長は少し大きめ */
+}
+
+/* コメントのみモード */
+body.comment-only #container { flex-direction: column; }
+body.comment-only #nicoArea { flex: 1; width: 100%; }
+body.comment-only #twiArea,
+body.comment-only #concurrentUsers { display: none; }
+
+
+/* =============================================================
+   2. コメントエリア・フローティング
+   ============================================================= */
+
+#nicoArea {
+    background: #001f33;
+    color: white;
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+    overflow: hidden;
+}
+
+#floatingCommentsWrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.floating-comment {
+    position: absolute;
+    white-space: nowrap;
+    font-size: 72px;
+    font-weight: normal;
+    font-family: 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
+    pointer-events: none;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+    left: 0;
+}
+
+.center-fixed-comment {
+    position: absolute;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    font-size: 72px;
+    font-weight: normal;
+    font-family: 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+    text-align: center;
+    box-sizing: border-box;
+    padding: 0 10px;
+    max-width: 90%;
+}
+
+/* =============================================================
+   文字サイズ（小・中・大）
+   ・center-fixed は adjustCenterFixedCommentFontSize() 側で
+     data-size を見て縮小フィッティングの基準値を変えるため、
+     ここでは主に floating-comment 側の表示に効く
+   ============================================================= */
+.floating-comment.size-small { font-size: 43px; }
+.floating-comment.size-medium { font-size: 72px; }
+.floating-comment.size-large { font-size: 101px; }
+
+.center-fixed-comment.size-small { font-size: 43px; }
+.center-fixed-comment.size-medium { font-size: 72px; }
+.center-fixed-comment.size-large { font-size: 101px; }
+
+/* 五千兆円（split-special）の上下段も文字サイズに応じてスケール */
+.floating-comment.size-small .part-upper,
+.floating-comment.size-small .part-lower {
+    font-size: 30px !important;
+}
+.floating-comment.size-large .part-upper,
+.floating-comment.size-large .part-lower {
+    font-size: 70px !important;
+}
+
+
+/* =============================================================
+   3. オーバーレイUI（トグルボタン・ログ・同接数）
+   ============================================================= */
+
+/* 共通トグルボタンスタイル */
+#toggleLogDisplayContainer,
+#toggleSpeechContainer,
+#toggleRainbowContainer {
+    position: absolute;
+    left: 15px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    font-size: 20px;
+    background: #1a3a5a;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: fit-content;
+    box-sizing: border-box;
+    opacity: 0.7;
+}
+#toggleLogDisplayContainer { top: 15px; }
+#toggleSpeechContainer     { top: 60px; }
+#toggleRainbowContainer    { top: 105px; }
+
+#toggleLogDisplayContainer label,
+#toggleSpeechContainer label,
+#toggleRainbowContainer label {
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    font-family: 'k8x12S', sans-serif;
+}
+#toggleLogDisplayContainer input[type="checkbox"],
+#toggleSpeechContainer input[type="checkbox"],
+#toggleRainbowContainer input[type="checkbox"] {
+    transform: scale(1.5);
+    cursor: pointer;
+    flex: none;
+    width: auto;
+    height: auto;
+}
+
+/* 投稿ログパネル */
+#logContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.7);
+    color: #E0E0E0;
+    padding: 60px 15px 15px 15px;
+    box-sizing: border-box;
+    z-index: 15;
+    display: none !important;
+}
+
+/* 同接数 */
+#concurrentUsers {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 24px;
+    font-family: 'k8x12S', sans-serif;
+    z-index: 100;
+}
+
+
+/* =============================================================
+   4. メインエリア（投稿フォーム・ヘッダー・ユーザー統計）
+   ============================================================= */
+
+#twiArea {
+    flex: 1;
+    padding: 25px;
+    overflow-y: auto;
+    background: #0a1b2a;
+    color: white;
+}
+
+#headerSection {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 0;
+    padding-top: 0;
+    position: relative;
+    gap: 0;
+}
+
+#twiArea h1 {
+    font-family: 'k8x12S', sans-serif;
+    text-align: left;
+    margin: 0;
+    color: #ffffff;
+    font-size: 84px;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* TOP3ランキング */
+#topUsers {
+    background: #1a3a5a;
+    padding: 8px 15px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    font-family: 'k8x12S', sans-serif;
+}
+#topUsers h3 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-size: 24px;
+    text-align: center;
+}
+#topUsers ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+#topUsers li {
+    margin-bottom: 2px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.equal-rank-info {
+    font-size: 12px;
+    color: #bbb;
+    text-align: right;
+    margin-top: 5px;
+}
+
+/* リプレイパネル */
+#replayPanel {
+    background: #1a3a5a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    color: #fff;
+}
+#replayPanel h3 {
+    margin: 0 0 10px 0;
+    font-size: 36px;
+    text-align: center;
+}
+#replayPanel .replay-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+#replayPanel input[type="number"] {
+    width: 70px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid #aaa;
+    background: #0d2236;
+    color: #fff;
+    flex: none;
+    min-width: unset;
+}
+#replayPanel input[type="range"] {
+    flex: none;
+    width: 80px;
+    padding: 0;
+    border: none;
+}
+#replayStartBtn {
+    background: #e08000;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+}
+#replayTxtStartBtn {
+    background: #2a7a3a;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+#replayStopBtn {
+    background: #888;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+}
+#replayStatus {
+    font-size: 12px;
+    color: #aad;
+    margin-top: 4px;
+}
+
+/* 全ユーザー一覧 */
+#allUsers {
+    font-size: 24px;
+    margin-top: 30px;
+    background: #1a3a5a;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'k8x12S', sans-serif;
+}
+#allUsers h3 {
+    font-size: 36px;
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+}
+#allUsers ul {
+    list-style-type: disc;
+    padding-left: 20px;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+#allUsers li {
+    font-size: 24px;
+    margin-bottom: 8px;
+    margin-right: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(50% - 25px);
+    flex-grow: 1;
+}
+
+/* 警告メッセージ */
+#usageWarning {
+    color: yellow;
+    background-color: rgba(255, 0, 0, 0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: none;
+    text-align: center;
+}
+
+/* 管理パネル */
+#adminPanel {
+    margin-top: 30px;
+}
+#adminPanel .credit {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+    font-family: sans-serif;
+}
+#adminPanel .credit a {
+    color: rgba(255,255,255,0.55);
+}
+
+
+/* =============================================================
+   5. 投稿フォーム
+   ============================================================= */
+
+form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    align-items: center;
+}
+
+.form-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+}
+.form-field label {
+    font-size: 24px;
+    white-space: nowrap;
+    color: #ccc;
+    font-family: 'k8x12S', sans-serif;
+}
+
+input, select {
+    padding: 10px;
+    font-size: 20px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    flex: 1;
+    min-width: 80px;
+}
+input::placeholder {
+    font-family: 'GenZenGothicKaiC', sans-serif;
+}
+
+input#comment  { min-width: 300px; }
+input#nickname { max-width: 130px; flex: none; }
+
+#colorPickerContainer {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: none;
+    width: 150px;
+}
+input[type="color"] {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+}
+#colorPickerContainer label {
+    font-size: 24px;
+    white-space: nowrap;
+    color: #fff;
+    font-family: 'k8x12S', sans-serif;
+}
+
+select#predefinedColor {
+    flex: none;
+    width: auto;
+    min-width: 80px;
+    max-width: 100px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    line-height: 1.8;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
+select#commentType {
+    flex: none;
+    width: auto;
+    min-width: 80px;
+    max-width: 100px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    line-height: 1.8;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
+select#commentSize {
+    flex: none;
+    width: auto;
+    min-width: 60px;
+    max-width: 80px;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    line-height: 1.8;
+    padding-top: 6px;
+    padding-bottom: 8px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+#clearInputBtn {
+    padding: 10px 20px;
+    font-size: 24px;
+    font-family: 'k8x12S', sans-serif;
+    background: #ff69b4;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+button[type="submit"] {
+    padding: 10px 20px;
+    font-size: 24px;
+    font-family: 'k8x12S', sans-serif;
+    background: #00ced1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+#clearInputBtn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+
+/* =============================================================
+   6. 投稿ストリーム（tweetStream）
+   ============================================================= */
+
+#feedTabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.feed-tab {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 24px;
+    font-family: 'k8x12S', sans-serif;
+    background: #10283d;
+    color: #ccc;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.feed-tab.active-tab {
+    background: #4a90d9;
+    color: #fff;
+    font-weight: bold;
+}
+
+#quotePreviewContainer {
+    border-top: 2px dashed #4a90d9;
+    border-bottom: 2px dashed #4a90d9;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background: #0a1c2c;
+    border-radius: 4px;
+}
+.quote-preview-header {
+    font-family: 'k8x12S', sans-serif;
+    font-size: 18px;
+    color: #8ab4e8;
+    margin-bottom: 3px;
+}
+.quote-preview-body {
+    color: #cfd8e3;
+    font-size: 20px;
+    overflow-wrap: anywhere;
+    max-height: 6em;
+    overflow: hidden;
+}
+.quote-preview-body .part-upper,
+.quote-preview-body .part-lower {
+    font-size: 18px !important;
+}
+
+.tweet {
+    background: #10283d;
+    border-radius: 12px;
+    padding: 8px 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    margin-bottom: 8px;
+    font-size: 27px; /* 横長(デフォルト)は少し小さめ */
+    overflow: visible;
+}
+
+/* 引用カード（quote機能） */
+.quote-card {
+    background: #0a1c2c;
+    border-left: 3px solid #4a90d9;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 4px 0 8px;
+    font-size: 0.6em;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    font-family: 'GenZenGothicKaiC', sans-serif !important; /* 引用元(投稿)のdot-fontを継承しないようリセット */
+}
+.quote-card .part-upper,
+.quote-card .part-lower {
+    font-size: 18px !important;
+}
+.quote-card-header {
+    color: #8ab4e8;
+    margin-bottom: 2px;
+}
+.quote-card-number {
+    font-family: 'k8x12S', sans-serif;
+    font-weight: normal;
+}
+.quote-card-name {
+    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-weight: normal;
+}
+.quote-card-body {
+    color: #cfd8e3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.quote-card-body.quote-card-expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+.quote-card-toggle {
+    display: inline-block;
+    margin-top: 3px;
+    color: #4a90d9;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.quote-card-toggle:hover {
+    color: #7ab8f5;
+}
+.quote-card-missing,
+.quote-card-loading {
+    color: #888;
+    font-style: italic;
+}
+.quote-card-clickable {
+    cursor: pointer;
+}
+.quote-card-clickable:hover {
+    background: #123049;
+}
+.quote-mention {
+    color: #4a90d9;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.quote-mention:hover {
+    color: #7ab8f5;
+}
+@keyframes quote-jump-flash {
+    0% { box-shadow: 0 0 0 3px rgba(74,144,217,0.9); }
+    100% { box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+}
+.quote-jump-highlight {
+    animation: quote-jump-flash 1.5s ease-out;
+}
+.quote-number {
+    cursor: pointer;
+    color: #aaa;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+}
+.quote-number:hover {
+    text-decoration: underline;
+    color: #7ab8f5;
+}
+.requote-btn {
+    margin-left: 10px;
+}
+.requote-btn:hover {
+    color: #7ab8f5 !important;
+}
+
+.tweet-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 0;
+    overflow: visible;
+    padding-bottom: 3px; /* 名前のディセンダークリッピング防止 */
+}
+.tweet strong {
+    font-size: 22px;
+    font-weight: normal; /* <strong>のデフォルトboldを解除（合成ボールドで潰れて見える対策） */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'GenZenGothicKaiC', sans-serif;
+    padding-bottom: 4px; /* ディセンダークリッピング防止 */
+}
+.tweet p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    margin-top: 0;
+    margin-bottom: 0;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+.tweet p.expanded {
+    -webkit-line-clamp: unset;
+    max-height: none;
+    overflow: visible;
+    white-space: pre-wrap;
+}
+.tweet .no-toggle {
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    max-height: none !important;
+    display: block !important;
+}
+.tweet .toggle-text-button {
+    background: none;
+    border: none;
+    color: #87CEEB;
+    cursor: pointer;
+    font-size: 22px;
+    padding: 0;
+    margin-top: 5px;
+    display: block;
+    text-align: right;
+}
+.tweet-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0;
+}
+.tweet .actions button {
+    font-size: 24px;
+    background: transparent;
+    color: #ccc;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+.timestamp {
+    font-size: 24px;
+    color: #aaa;
+    text-align: right;
+    font-family: 'k8x12S', sans-serif;
+}
+/* ドット投稿でも日時は通常フォント */
+.dot-font .timestamp {
+    font-family: 'GenZenGothicKaiC', sans-serif;
+}
+
+
+/* =============================================================
+   7. テキスト短縮表示・展開（line-clamp）
+   ============================================================= */
+
+/* 投稿ストリームの短縮表示（1行） */
+.tweet-text-content:not(.expanded):not(.no-toggle):not(.clamp-2),
+#tweetStream .tweet .tweet-text-content:not(.expanded):not(.no-toggle):not(.clamp-2) {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    padding-bottom: 4px; /* ディセンダーのクリッピング防止 */
+}
+
+/* 全文表示 */
+.tweet-text-content.expanded,
+.log-content.expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* 短縮不要な場合 */
+.tweet-text-content.no-toggle ~ .toggle-text-button {
+    display: none;
+}
+
+/* 5000兆円：split-specialへのline-clamp */
+.split-special.clamped {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 5000兆円の2行省略（tweetStream内） */
+.tweet .tweet-text-content.clamp-2 {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    position: relative;
+}
+.tweet .tweet-text-content.clamp-2:not(.expanded)::after {
+    content: '...';
+    position: absolute;
+    bottom: 0;
+    right: -0.07em;
+    background: #10283d;
+    padding-left: 3px;
+    color: #ffffff;
+    font-family: 'k8x12S', sans-serif;
+    font-size: 24px;
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* 一時的な短縮クラス（高さ計測用） */
+.temp-clamp {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    text-overflow: ellipsis;
+}
+.temp-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    text-overflow: ellipsis;
+}
+
+/* もっと見る / 折りたたむボタン */
+.toggle-text-button,
+.log-toggle-link {
+    background: none;
+    border: none;
+    color: #87CEEB;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9em;
+    padding: 0;
+    margin-top: 5px;
+    display: block;
+}
+
+
+/* =============================================================
+   8. 投稿ログパネル（logContainer内）
+   ============================================================= */
+
+.log-comment {
+    margin-bottom: 5px;
+    padding: 5px;
+    background-color: #333;
+    border-radius: 5px;
+}
+.log-user {
+    font-weight: bold;
+}
+.log-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+
+/* ログの短縮表示（通常：1行） */
+#logContainer .log-comment .log-content.shortened {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    text-overflow: ellipsis;
+}
+/* ログの短縮表示（5000兆円：max-height方式） */
+#logContainer .log-comment .log-content.shortened-5000 {
+    overflow: hidden;
+    max-height: 3em; /* 約2行分 */
+    display: block;
+}
+
+.log-comment .log-toggle-link {
+    background: none;
+    border: none;
+    color: #87CEEB;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9em;
+    padding: 0;
+    margin-left: 5px;
+}
+
+
+/* =============================================================
+   9. 虹色コメント（rainbow）
+   ============================================================= */
+
+@keyframes explicit-rainbow-cycle {
+    0%, 100% { color: #FF0000; }
+    16.67%   { color: #FF7F00; }
+    33.33%   { color: #FFFF00; }
+    50.00%   { color: #00FF00; }
+    66.67%   { color: #0000FF; }
+    83.33%   { color: #BF00FF; }
+}
+
+/* 虹色アニメOFF時: bodyクラスでアニメーションを無効化し静的な色に */
+body.rainbow-anim-off .rainbow-char {
+    animation: none !important;
+}
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+1) { color: #FF0000 !important; }
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+2) { color: #FF7F00 !important; }
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+3) { color: #FFFF00 !important; }
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+4) { color: #00FF00 !important; }
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+5) { color: #0000FF !important; }
+body.rainbow-anim-off .rainbow-char:nth-of-type(6n+6) { color: #BF00FF !important; }
+
+.rainbow-char {
+    display: inline-block;
+    color: #FF0000;
+    animation: explicit-rainbow-cycle 1s linear infinite;
+}
+
+/* 虹色コメントの親要素のcolor継承を解除 */
+.tweet-text-content[style*="color: initial"],
+.log-content[style*="color: initial"],
+.floating-comment[style*="color: initial"] {
+    color: unset !important;
+}
+
+/* コメント本文の行間 */
+.tweet-text-content {
+    line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: anywhere; /* no-toggle等でも改行できるようにする（5000兆円の連続文字対策） */
+}
+
+/* 投稿ログ（tweetStream）側の文字サイズ（小・中・大） */
+.tweet-text-content.size-small { font-size: 20px; }
+.tweet-text-content.size-medium { font-size: 30px; }
+.tweet-text-content.size-large { font-size: 42px; }
+
+.tweet-text-content.size-small .part-upper,
+.tweet-text-content.size-small .part-lower {
+    font-size: 21px !important;
+}
+.tweet-text-content.size-large .part-upper,
+.tweet-text-content.size-large .part-lower {
+    font-size: 44px !important;
+}
+
+
+/* =============================================================
+   10. 5000兆円フォント
+   ============================================================= */
+
+.split-special {
+    display: flex;
+    flex-direction: column;
+    font-family: serif;
+    font-weight: 900;
+    font-style: italic;
+    line-height: 1.1;
+}
+.part-upper {
+    font-size: 40px;
+    background: linear-gradient(to bottom, #ff3a3a 0%, #ff3a3a 45%, #b30000 50%, #ff0000 55%, #ff3a3a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(2px 2px 0px #fff) drop-shadow(-2px -2px 0px #fff) drop-shadow(0 0 5px rgba(255,215,0,0.8));
+}
+.part-lower {
+    font-size: 60px;
+    background: linear-gradient(to bottom, #ffffff 0%, #ffffff 45%, #aaaaaa 50%, #ffffff 55%, #ffffff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(2px 2px 0px #000080) drop-shadow(-2px -2px 0px #000080);
+    padding-left: 20px;
+    margin-top: -10px;
+}
+
+/* フローティング・中央固定内：横並び */
+.floating-comment .split-special,
+.center-fixed-comment .split-special {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+}
+.floating-comment .part-upper {
+    font-size: 50px !important;
+    text-shadow: none;
+}
+.floating-comment .part-lower {
+    font-size: 50px !important;
+    padding-left: 0;
+    margin-top: 0;
+    text-shadow: none;
+}
+.center-fixed-comment .part-upper { text-shadow: none; }
+.center-fixed-comment .part-lower {
+    padding-left: 0;
+    margin-top: 0;
+    text-shadow: none;
+}
+
+/* tweetStream内 */
+.tweet .split-special {
+    display: block;
+    padding-right: 20px;
+    overflow: visible;
+}
+.tweet .part-upper {
+    display: inline;
+    font-size: 31px !important;
+    padding-right: 0.3em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+.tweet .part-lower {
+    display: inline;
+    font-size: 31px !important;
+    padding-left: 0;
+    margin-top: 0;
+    padding-right: 0.3em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* =============================================================
+   11. 書き出しモーダル
+   ============================================================= */
+
+#exportModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    /* bodyのtransform: scale()の影響を打ち消す */
+    transform: none !important;
+    transform-origin: unset !important;
+}
+#exportModal.open {
+    display: flex;
+}
+#exportModalBox {
+    background: #1a3a5a;
+    border-radius: 10px;
+    padding: 28px 32px;
+    min-width: 300px;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    font-family: 'k8x12S', sans-serif;
+}
+#exportModalBox h3 {
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    text-align: center;
+}
+#exportFormatRow {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+#exportFormatRow label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+.export-option-btn {
+    padding: 12px 16px;
+    font-size: 24px;
+    font-family: 'k8x12S', sans-serif;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #007bff;
+    color: #fff;
+    text-align: left;
+    transition: background 0.15s;
+}
+.export-option-btn:hover { background: #0056c7; }
+.export-option-btn.loading {
+    background: #555;
+    cursor: wait;
+}
+#exportModalCancel {
+    padding: 8px;
+    font-size: 12px;
+    font-family: 'k8x12S', sans-serif;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #444;
+    color: #ccc;
+    margin-top: 4px;
+}
+#exportModalCancel:hover { background: #555; }
+#exportModalStatus {
+    font-size: 12px;
+    color: #aef;
+    text-align: center;
+    min-height: 1.2em;
+}
+
