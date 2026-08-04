@@ -402,13 +402,17 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
 
     div.innerHTML = `
     <div class="tweet-meta-row">
-        <span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span>
-        <span class="tweet-username">@${displayUserName}</span>
-        <span class="tweet-meta-timestamp">${formattedTime}</span>
-        <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
-            👍️ ${reactionCount}
-        </button>
-        <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
+        <span class="tweet-meta-left">
+            <span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span>
+            <span class="tweet-username">@${displayUserName}</span>
+        </span>
+        <span class="tweet-meta-right">
+            <span class="tweet-meta-timestamp">${formattedTime}</span>
+            <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
+                👍️ ${reactionCount}
+            </button>
+            <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
+        </span>
     </div>
     ${quoteCardHtml}
     ${textContentHtml}
