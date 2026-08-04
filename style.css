@@ -70,18 +70,13 @@ body {
     #twiArea { flex: 1; }
     .tweet { font-size: 33px; } /* 縦長は少し大きめ */
 
-    /* 縦長：#番号・@名前・時間・👍・🔄を1行にまとめ、👍と🔄を右側に寄せる */
-    .tweet-meta-row { flex-wrap: nowrap; }
-    .tweet-meta-left { flex: 0 1 auto; min-width: 0; }
-    .tweet-meta-right {
-        flex: 0 0 auto;
-        margin-left: auto;
-        justify-content: flex-start;
-    }
-    .tweet-meta-timestamp,
-    .tweet-meta-row .reaction-btn,
-    .tweet-meta-row .requote-btn {
-        order: 0; /* 横長用の並び替えを解除し、本来のHTML順（時間→👍→🔄）に戻す */
+    /* 縦長：左に #番号・@名前・時間、右に 👍・🔄 を1行にまとめる（名前は必要なら省略） */
+    .tweet-meta-row { flex-wrap: nowrap; justify-content: flex-start; }
+    .tweet-meta-namegroup { flex: 0 1 auto; min-width: 0; }
+    .tweet-meta-timestamp { order: 0; flex-shrink: 0; } /* namegroupの直後に自然な順で表示 */
+    .tweet-meta-actions {
+        order: 0;
+        margin-left: auto; /* 👍🔄だけを右端に寄せる */
     }
 }
 
@@ -739,6 +734,8 @@ button:disabled {
     color: #aaa;
     font-family: 'k8x12S', sans-serif;
     font-size: 24px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 .quote-number:hover {
     text-decoration: underline;
@@ -751,26 +748,27 @@ button:disabled {
 .tweet-meta-row {
     display: flex;
     align-items: center;
-    flex-wrap: wrap; /* 横長では2グループを別々の行に折り返す */
+    flex-wrap: wrap; /* 横長ではnamegroupを単独の行にし、残りを次の行に折り返す */
+    justify-content: space-between; /* 横長：2行目内で actions/timestamp を両端に */
     gap: 4px 8px;
     margin-bottom: 0;
     overflow: hidden;
     padding-bottom: 3px; /* 名前のディセンダークリッピング防止 */
 }
-.tweet-meta-left {
+.tweet-meta-namegroup {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
-    flex: 1 1 100%; /* 横長では単独で1行を占有し、右グループを次の行へ押し出す（元の形式） */
+    flex: 1 1 100%; /* 横長では単独で1行を占有し、残りを次の行へ押し出す（元の形式） */
     overflow: hidden;
 }
-.tweet-meta-right {
+.tweet-meta-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1 1 100%;
-    justify-content: space-between; /* 横長：🔄👍を左、時間を右に（元の形式） */
+    order: 1; /* 横長：時間より先(左)に表示 */
+    flex-shrink: 0;
 }
 .tweet-username {
     font-size: 22px;
@@ -821,14 +819,12 @@ button:disabled {
 }
 .tweet-meta-row .reaction-btn,
 .tweet-meta-row .requote-btn {
-    order: 1; /* 横長：時間より先(左)に表示 */
     font-size: 24px;
     background: transparent;
     color: #ccc;
     border: none;
     cursor: pointer;
     padding: 0;
-    flex-shrink: 0;
     white-space: nowrap;
 }
 .tweet-meta-timestamp {
