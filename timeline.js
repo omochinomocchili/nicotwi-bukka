@@ -401,19 +401,17 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
     const textContentHtml = isQuoteOnly ? '' : `<div class="tweet-text-content size-${data.size || 'medium'}${textContentExtraClass}" ${pStyle}>${commentContentHtml}</div>`;
 
     div.innerHTML = `
-    <div class="tweet-meta-row">
-        <span class="tweet-meta-namegroup">
-            <span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span>
-            <span class="tweet-username">@${displayUserName}</span>
-        </span>
-        <span class="tweet-meta-timestamp">${formattedTime}</span>
-        <span class="tweet-meta-actions">
-            <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
-                👍️ ${reactionCount}
-            </button>
-            <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
-        </span>
-    </div>
+    <span class="tweet-meta-namegroup">
+        <span class="quote-number" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">#${currentTweetNumber}</span>
+        <span class="tweet-username">@${displayUserName}</span>
+    </span>
+    <span class="tweet-meta-timestamp">${formattedTime}</span>
+    <span class="tweet-meta-actions">
+        <button class="reaction-btn" style="color: ${reacted ? '#87CEEB' : '#ccc'};" ${isAnonymousPost ? 'disabled' : ''}>
+            👍️ ${reactionCount}
+        </button>
+        <button type="button" class="requote-btn" onclick="insertQuoteIntoForm(${currentTweetNumber})" title="この投稿を引用">🔄</button>
+    </span>
     ${quoteCardHtml}
     ${textContentHtml}
     <div class="log-actions" style="display: ${(isOverFlow && !isQuoteOnly) ? 'flex' : 'none'};">
@@ -435,7 +433,7 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
         div.style.display = 'block';
     }
 
-    const reactionBtn = div.querySelector(".tweet-meta-row .reaction-btn");
+    const reactionBtn = div.querySelector(".tweet-meta-actions .reaction-btn");
     if (reactionBtn) {
         // いいねの実処理（Firebaseへの反映）は firebase.js の toggleReaction() が担当する
         reactionBtn.onclick = () => toggleReaction(key, data);

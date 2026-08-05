@@ -71,13 +71,17 @@ body {
     .tweet { font-size: 33px; } /* 縦長は少し大きめ */
 
     /* 縦長：左に #番号・@名前・時間、右に 👍・🔄 を1行にまとめる（名前は必要なら省略） */
-    .tweet-meta-row { flex-wrap: nowrap; justify-content: flex-start; }
-    .tweet-meta-namegroup { flex: 0 1 auto; min-width: 0; }
-    .tweet-meta-timestamp { order: 0; flex-shrink: 0; } /* namegroupの直後に自然な順で表示 */
-    .tweet-meta-actions {
-        order: 0;
-        margin-left: auto; /* 👍🔄だけを右端に寄せる */
+    .tweet {
+        grid-template-columns: minmax(0, max-content) auto 1fr;
+        grid-template-areas:
+            "namegroup timestamp actions"
+            "quote quote quote"
+            "content content content"
+            "logactions logactions logactions";
     }
+    .tweet-meta-namegroup { min-width: 0; }
+    .tweet-meta-timestamp { justify-self: start; }
+    .tweet-meta-actions { justify-self: end; }
 }
 
 /* コメントのみモード */
@@ -644,6 +648,17 @@ button:disabled {
 }
 
 .tweet {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "namegroup namegroup"
+        "quote quote"
+        "content content"
+        "logactions logactions"
+        "actions timestamp";
+    row-gap: 2px;
+    column-gap: 8px;
+    align-items: center;
     background: #10283d;
     border-radius: 12px;
     padding: 8px 15px;
@@ -652,6 +667,12 @@ button:disabled {
     font-size: 27px; /* 横長(デフォルト)は少し小さめ */
     overflow: visible;
 }
+.tweet-meta-namegroup { grid-area: namegroup; }
+.tweet-meta-timestamp { grid-area: timestamp; justify-self: end; }
+.tweet-meta-actions { grid-area: actions; justify-self: start; }
+.tweet .quote-card { grid-area: quote; }
+.tweet .tweet-text-content { grid-area: content; }
+.tweet .log-actions { grid-area: logactions; }
 
 /* 引用カード（quote機能） */
 .quote-card {
@@ -745,30 +766,18 @@ button:disabled {
     color: #7ab8f5 !important;
 }
 
-.tweet-meta-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap; /* 横長ではnamegroupを単独の行にし、残りを次の行に折り返す */
-    justify-content: space-between; /* 横長：2行目内で actions/timestamp を両端に */
-    gap: 4px 8px;
-    margin-bottom: 0;
-    overflow: hidden;
-    padding-bottom: 3px; /* 名前のディセンダークリッピング防止 */
-}
 .tweet-meta-namegroup {
     display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
-    flex: 1 1 100%; /* 横長では単独で1行を占有し、残りを次の行へ押し出す（元の形式） */
     overflow: hidden;
+    padding-bottom: 3px; /* 名前のディセンダークリッピング防止 */
 }
 .tweet-meta-actions {
     display: flex;
     align-items: center;
     gap: 8px;
-    order: 1; /* 横長：時間より先(左)に表示 */
-    flex-shrink: 0;
 }
 .tweet-username {
     font-size: 22px;
@@ -817,8 +826,8 @@ button:disabled {
     display: block;
     text-align: right;
 }
-.tweet-meta-row .reaction-btn,
-.tweet-meta-row .requote-btn {
+.tweet-meta-actions .reaction-btn,
+.tweet-meta-actions .requote-btn {
     font-size: 24px;
     background: transparent;
     color: #ccc;
@@ -828,11 +837,9 @@ button:disabled {
     white-space: nowrap;
 }
 .tweet-meta-timestamp {
-    order: 2; /* 横長：右端に表示 */
     font-size: 24px;
     color: #aaa;
     font-family: 'k8x12S', sans-serif;
-    flex-shrink: 0;
     white-space: nowrap;
 }
 
