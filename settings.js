@@ -55,7 +55,7 @@
   function updateAllTweetDisplayVisibility(visible) {
       const tweets = tweetStream.children;
       for (let i = 0; i < tweets.length; i++) {
-          tweets[i].style.display = visible ? 'block' : 'none';
+          tweets[i].style.display = visible ? '' : 'none'; // ''にしてCSSのdisplay:gridを使わせる
       }
   }
 
