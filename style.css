@@ -69,19 +69,6 @@ body {
     #nicoArea { flex: 2; }
     #twiArea { flex: 1; }
     .tweet { font-size: 33px; } /* 縦長は少し大きめ */
-
-    /* 縦長：左に #番号・@名前・時間、右に 👍・🔄 を1行にまとめる（名前は必要なら省略） */
-    .tweet {
-        grid-template-columns: minmax(0, max-content) auto 1fr;
-        grid-template-areas:
-            "namegroup timestamp actions"
-            "quote quote quote"
-            "content content content"
-            "logactions logactions logactions";
-    }
-    .tweet-meta-namegroup { min-width: 0; }
-    .tweet-meta-timestamp { justify-self: start; }
-    .tweet-meta-actions { justify-self: end; }
 }
 
 /* コメントのみモード */
@@ -673,6 +660,7 @@ button:disabled {
 .tweet .quote-card { grid-area: quote; }
 .tweet .tweet-text-content { grid-area: content; }
 .tweet .log-actions { grid-area: logactions; }
+.tweet .toggle-text-button { grid-area: logactions; }
 
 /* 引用カード（quote機能） */
 .quote-card {

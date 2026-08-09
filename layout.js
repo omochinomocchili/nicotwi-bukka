@@ -83,13 +83,13 @@
     // h1サイズを再調整
     balanceHeader();
 
-    // スケール調整後に5000兆円ツイートの省略を再評価（レイアウト確定後）
+    // スケール調整後に投稿の折りたたみ判定を再評価（レイアウト確定後。5000兆円に限らず全投稿が対象）
     setTimeout(() => {
         Object.keys(allTweets).forEach((key) => {
             const tweet = allTweets[key];
-            if (tweet.color === '5000trillion' || tweet.color === 'split_custom') {
-                const div = document.querySelector(`.tweet[data-key="${key}"]`);
-                if (div) updateTweetDisplay(div, tweet);
+            const div = document.querySelector(`.tweet[data-key="${key}"]`);
+            if (div && div.querySelector('.tweet-text-content')) {
+                updateTweetDisplay(div, tweet);
             }
         });
     }, 600); // RESIZE_DEBOUNCE_TIME(500ms)より長く設定
