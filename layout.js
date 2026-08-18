@@ -52,29 +52,20 @@
     const logShown = toggleLogDisplayCheckbox.checked;
     if (isPortrait && logShown) {
         // 縦長: nicoArea高さ = 幅 × 9/16 → フローティングエリアが 縦:横 = 9:16 になる
+        // grid-template-rows は [nico, header, form, twi] の1カラム構成。
+        // nicoだけ固定高さにし、header/formは中身なりに、残りをtwiのflex:1(1fr)で吸収する。
         const targetCommentH = Math.min(scaledLogicalWidth * 9 / 16, scaledLogicalHeight * 0.85);
-        nicoArea.style.flex = 'none';
-        nicoArea.style.width = '';
-        nicoArea.style.height = `${targetCommentH}px`;
-        // twiAreaはリセット（残り高さをflex:1で取る）
-        twiAreaEl.style.flex = '';
-        twiAreaEl.style.width = '';
+        container.style.gridTemplateRows = `${targetCommentH}px auto auto 1fr`;
+        container.style.gridTemplateColumns = '';
     } else if (!isPortrait && logShown) {
-        // 横長: twiArea幅 = 高さ × 9/16 → ログエリアが 縦:横 = 16:9 になる
+        // 横長: 右カラム(ヘッダー+twiArea)幅 = 高さ × 9/16 → 左カラム(nicoArea)側が 縦:横 = 16:9 相当になる
         const targetMainW = scaledLogicalHeight * 9 / 16;
-        twiAreaEl.style.flex = 'none';
-        twiAreaEl.style.width = `${targetMainW}px`;
-        // nicoAreaはリセット（残り幅をflex:1で取る）
-        nicoArea.style.flex = '';
-        nicoArea.style.width = '';
-        nicoArea.style.height = '';
+        container.style.gridTemplateColumns = `1fr ${targetMainW}px`;
+        container.style.gridTemplateRows = '';
     } else {
-        // ログ非表示 → 両方リセット
-        nicoArea.style.flex = '';
-        nicoArea.style.width = '';
-        nicoArea.style.height = '';
-        twiAreaEl.style.flex = '';
-        twiAreaEl.style.width = '';
+        // ログ非表示 → 両方リセット（CSS側のデフォルト比率に戻す）
+        container.style.gridTemplateColumns = '';
+        container.style.gridTemplateRows = '';
     }
 
     // スケール調整後にコメントの位置を再調整
@@ -99,7 +90,7 @@
   //   「h1幅 + topUsers幅 = 全体幅」かつ「h1高さ = topUsers高さ」を同時に満たすよう
   //   topUsersスケール s をバイナリサーチで求める。
   function balanceHeader() {
-      const h1 = document.querySelector('#twiArea h1');
+      const h1 = document.querySelector('#headerSection h1');
       const topUsersEl = document.getElementById('topUsers');
       const headerSection = document.getElementById('headerSection');
       if (!h1 || !topUsersEl || !headerSection) return;
@@ -108,7 +99,11 @@
       h1.style.flex = 'none';
       h1.style.width = 'auto';
 
-      const totalWidth = headerSection.clientWidth;
+      // headerSection自身がpaddingを持つため、clientWidth(=content+padding)から
+      // padding分を引いた「flexの子要素が実際に使える幅」を基準にする
+      const hsStyle = getComputedStyle(headerSection);
+      const hsPadX = (parseFloat(hsStyle.paddingLeft) || 0) + (parseFloat(hsStyle.paddingRight) || 0);
+      const totalWidth = headerSection.clientWidth - hsPadX;
       const h3 = topUsersEl.querySelector('h3');
       const lis = topUsersEl.querySelectorAll('li:not(.equal-rank-info)');
       const H3_BASE = 18, LI_BASE = 15;
