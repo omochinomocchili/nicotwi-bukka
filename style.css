@@ -294,6 +294,12 @@ body.comment-only #concurrentUsers { display: none; }
     padding: 25px;
 }
 
+@media (max-aspect-ratio: 1/1) {
+    /* 縦長ではformArea・twiAreaが縦に隣接するため、双方の25pxパディングが
+       合算されて隙間が広がりすぎる。twiArea側の上パディングだけに任せる */
+    #formArea { padding-bottom: 0; }
+}
+
 #headerSection h1 {
     font-family: 'k8x12S', sans-serif;
     text-align: left;
