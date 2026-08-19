@@ -195,7 +195,18 @@
                   else fhi = fmid - 1;
               }
               allLis.forEach(li => li.style.fontSize = flo + 'px');
-              if (h3) h3.style.fontSize = Math.round(flo * H3_BASE / LI_BASE) + 'px';
+              // h3はliと文字数が大きく異なるため、同じ比率では箱に収まらないことがある。
+              // liと同様にboxW基準で独立に二分探索して、確実にtopUsersの幅に収める。
+              if (h3) {
+                  let h3lo = 1, h3hi = 300;
+                  while (h3lo < h3hi) {
+                      const h3mid = Math.ceil((h3lo + h3hi) / 2);
+                      h3.style.fontSize = h3mid + 'px';
+                      if (h3.scrollWidth <= boxW) h3lo = h3mid;
+                      else h3hi = h3mid - 1;
+                  }
+                  h3.style.fontSize = h3lo + 'px';
+              }
           }
       }
   }

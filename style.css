@@ -280,6 +280,9 @@ body.comment-only #concurrentUsers { display: none; }
     padding: 25px 25px 0 25px;
     position: relative;
     gap: 0;
+    color: white; /* twiAreaの外に出たためcolor:whiteの継承が切れる分をここで補う */
+    min-width: 0;  /* h1(white-space:nowrap)の最小コンテンツ幅がgridの列幅を押し広げるのを防ぐ */
+    min-height: 0;
 }
 
 /* 投稿フォーム＋引用プレビューをまとめて左カラム下部に配置 */
