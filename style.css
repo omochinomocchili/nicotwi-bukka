@@ -81,7 +81,7 @@ body {
             "form"
             "twi";
     }
-    .tweet { font-size: 33px; } /* 縦長は少し大きめ */
+    /* .tweetの縦長時フォントサイズは、基本ルールより後ろに置く必要があるため下のセクションで指定 */
 }
 
 /* コメントのみモード */
@@ -693,6 +693,9 @@ button:disabled {
     margin-bottom: 8px;
     font-size: 27px; /* 横長(デフォルト)は少し小さめ */
     overflow: visible;
+}
+@media (max-aspect-ratio: 1/1) {
+    .tweet { font-size: 33px; } /* 縦長は少し大きめ */
 }
 .tweet-meta-namegroup { grid-area: namegroup; }
 .tweet-meta-timestamp { grid-area: timestamp; justify-self: end; }
