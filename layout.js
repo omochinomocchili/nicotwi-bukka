@@ -13,10 +13,15 @@
 
 
   let resizeTimeout;
-  const RESIZE_DEBOUNCE_TIME = 500; 
+  let immediateFrameRequested = false;
+  const RESIZE_DEBOUNCE_TIME = 150; // 重い再計算(balanceHeader等)の間引き用。以前は500msだった
 
-  function adjustOverallScale() {
-    const container = document.getElementById('container'); 
+  // 軽量パート: transform:scale・コンテナの論理サイズ・グリッド比率など、
+  // window.innerWidth/Height から直接書き込むだけで済む(measure-then-writeの
+  // 往復が要らない)部分。resizeのたびにrAFで間引きつつ即座に反映することで、
+  // 「比率を変えてから見た目が追いつくまでのラグ」を最小化する。
+  function applyImmediateLayout() {
+    const container = document.getElementById('container');
 
     if (!container) {
         console.warn("container element not found. Skipping scale adjustment.");
@@ -68,13 +73,28 @@
         container.style.gridTemplateRows = '';
     }
 
-    // スケール調整後にコメントの位置を再調整
+    // コメントの位置を再調整（activeな中央固定コメント数個分の軽い計算のみ）
     updateCenterFixedCommentPositions();
+  }
 
-    // h1サイズを再調整
+  // rAFで「1フレームに1回まで」に間引きながら即時レイアウトを反映する
+  function requestImmediateLayout() {
+    if (immediateFrameRequested) return;
+    immediateFrameRequested = true;
+    requestAnimationFrame(() => {
+        immediateFrameRequested = false;
+        applyImmediateLayout();
+    });
+  }
+
+  function adjustOverallScale() {
+    // 即時パートを同期的にも実行しておく(直接呼ばれた場合の一貫性を保つため)
+    applyImmediateLayout();
+
+    // h1サイズを再調整（二分探索を伴う重い処理）
     balanceHeader();
 
-    // スケール調整後に投稿の折りたたみ判定を再評価（レイアウト確定後。5000兆円に限らず全投稿が対象）
+    // レイアウト確定後に投稿の折りたたみ判定を再評価（5000兆円に限らず全投稿が対象）
     setTimeout(() => {
         Object.keys(allTweets).forEach((key) => {
             const tweet = allTweets[key];
@@ -83,7 +103,7 @@
                 updateTweetDisplay(div, tweet);
             }
         });
-    }, 600); // RESIZE_DEBOUNCE_TIME(500ms)より長く設定
+    }, 250); // RESIZE_DEBOUNCE_TIME(150ms)より長く設定
   }
 
   // ヘッダーバランス調整:
@@ -227,18 +247,34 @@
   // 初回の adjustOverallScale() 呼び出しは、settings.js/timeline.js/comments.js の
   // 読み込み完了後でないと中の参照(toggleLogDisplayCheckbox等)がエラーになるため、
   // 最後に読み込まれる firebase.js 側で呼び出す。ここではイベント登録のみ行う。
-  window.addEventListener('resize', debounceAdjustScale);
+  //
+  // resizeイベントごとに、まずrequestImmediateLayout()で骨格(scale/コンテナサイズ/
+  // グリッド比率)を即座に反映し、その少し後にdebounceAdjustScale()で重い調整
+  // (balanceHeader等)を行う。こうすることで「比率を変えてから見た目が追いつくまで」
+  // の体感ラグを大きく減らせる。
+  window.addEventListener('resize', () => {
+      requestImmediateLayout();
+      debounceAdjustScale();
+  });
 
   // 画面回転（縦長⇔横長の切り替え）対応：
   // orientationchangeは端末やブラウザによってresizeが確実に発火するとは限らないため、
   // 別途こちらでも再計算をトリガーする。回転直後はwindow.innerWidth/innerHeightが
-  // まだ回転前の値のことがあるため、少し待ってから実行する。
+  // まだ回転前の値のことがあるため、少し待ってから実行する（以前は300msだったが、
+  // 過剰に長かったため100msに短縮）。
   window.addEventListener('orientationchange', () => {
-      setTimeout(debounceAdjustScale, 300);
+      setTimeout(() => {
+          requestImmediateLayout();
+          debounceAdjustScale();
+      }, 100);
   });
   if (window.screen && window.screen.orientation) {
       window.screen.orientation.addEventListener('change', () => {
-          setTimeout(debounceAdjustScale, 300);
+          setTimeout(() => {
+              requestImmediateLayout();
+              debounceAdjustScale();
+          }, 100);
       });
   }
+
 
