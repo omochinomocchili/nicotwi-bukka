@@ -259,22 +259,28 @@
 
   // 画面回転（縦長⇔横長の切り替え）対応：
   // orientationchangeは端末やブラウザによってresizeが確実に発火するとは限らないため、
-  // 別途こちらでも再計算をトリガーする。回転直後はwindow.innerWidth/innerHeightが
-  // まだ回転前の値のことがあるため、少し待ってから実行する（以前は300msだったが、
-  // 過剰に長かったため100msに短縮）。
-  window.addEventListener('orientationchange', () => {
+  // 別途こちらでも再計算をトリガーする。
+  //
+  // 回転直後はwindow.innerWidth/innerHeightがまだ回転前の値のことがあり、その値で
+  // scaleを計算してしまうと文字サイズ等が誤って小さく(または大きく)固定されてしまう。
+  // 端末によって値が安定するまでの時間差があるため、
+  //   1) 150ms後に一度計算（多くの端末はこれで十分反映される）
+  //   2) 念のため500ms後にもう一度計算し直す（安定が遅い端末向けの保険）
+  // の2段構えにして、体感速度と正確さを両立させる。
+  function handleOrientationChange() {
       setTimeout(() => {
           requestImmediateLayout();
           debounceAdjustScale();
-      }, 100);
-  });
-  if (window.screen && window.screen.orientation) {
-      window.screen.orientation.addEventListener('change', () => {
-          setTimeout(() => {
-              requestImmediateLayout();
-              debounceAdjustScale();
-          }, 100);
-      });
+      }, 150);
+      setTimeout(() => {
+          requestImmediateLayout();
+          adjustOverallScale();
+      }, 500);
   }
+  window.addEventListener('orientationchange', handleOrientationChange);
+  if (window.screen && window.screen.orientation) {
+      window.screen.orientation.addEventListener('change', handleOrientationChange);
+  }
+
 
 
