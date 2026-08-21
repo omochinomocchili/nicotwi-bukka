@@ -9,6 +9,48 @@
   const nicoArea = document.getElementById('nicoArea');
   const twiAreaEl = document.getElementById('twiArea'); 
 
+  // ---- 一時的なデバッグ表示 (原因調査用。解決したら削除する) ----
+  // bodyのtransform:scale()の影響を受けないよう<html>直下に直接ぶら下げる
+  function setupDebugOverlay() {
+      const box = document.createElement('div');
+      box.id = '__debugOverlay';
+      box.style.cssText = [
+          'position:fixed', 'top:0', 'left:0', 'z-index:999999',
+          'background:rgba(0,0,0,0.85)', 'color:#0f0',
+          'font-family:monospace', 'font-size:12px', 'line-height:1.4',
+          'padding:6px 8px', 'white-space:pre', 'pointer-events:none',
+          'transform:none', 'max-width:100vw', 'overflow:hidden'
+      ].join(';');
+      document.documentElement.appendChild(box);
+
+      function update() {
+          const c = document.getElementById('container');
+          const cs = c ? getComputedStyle(c) : null;
+          const rect = c ? c.getBoundingClientRect() : null;
+          const bodyCs = getComputedStyle(document.body);
+          const vv = window.visualViewport;
+          const lines = [
+              `innerW/H: ${window.innerWidth} x ${window.innerHeight}`,
+              `docEl clientW/H: ${document.documentElement.clientWidth} x ${document.documentElement.clientHeight}`,
+              `docEl scrollW/H: ${document.documentElement.scrollWidth} x ${document.documentElement.scrollHeight}`,
+              `visualViewport: ${vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(3) : 'なし'}`,
+              `devicePixelRatio: ${window.devicePixelRatio}`,
+              `body transform: ${bodyCs.transform}`,
+              `body textSizeAdjust: ${bodyCs.webkitTextSizeAdjust || bodyCs.textSizeAdjust || 'なし'}`,
+              `container style W/H: ${c ? c.style.width : '?'} / ${c ? c.style.height : '?'}`,
+              `container rect W/H: ${rect ? Math.round(rect.width) + ' x ' + Math.round(rect.height) : '?'}`,
+              `orientation: ${window.innerWidth <= window.innerHeight ? 'portrait' : 'landscape'}`,
+          ];
+          box.textContent = lines.join('\n');
+      }
+
+      update();
+      window.addEventListener('resize', update);
+      window.addEventListener('orientationchange', () => setTimeout(update, 50));
+      setInterval(update, 300); // ポーリングでも保険をかけておく
+  }
+  setupDebugOverlay();
+  // ---- デバッグ表示ここまで ----
 
 
 
