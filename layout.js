@@ -11,35 +11,54 @@
 
   // ---- 一時的なデバッグ表示 (原因調査用。解決したら削除する) ----
   // bodyのtransform:scale()の影響を受けないよう<html>直下に直接ぶら下げる
+  window.__jsErrors = [];
+  window.addEventListener('error', (e) => {
+      window.__jsErrors.push((e.message || 'unknown error') + ' @ ' + (e.filename || '?') + ':' + (e.lineno || '?'));
+      if (window.__jsErrors.length > 5) window.__jsErrors.shift();
+  });
+
   function setupDebugOverlay() {
       const box = document.createElement('div');
       box.id = '__debugOverlay';
       box.style.cssText = [
           'position:fixed', 'top:0', 'left:0', 'z-index:999999',
           'background:rgba(0,0,0,0.85)', 'color:#0f0',
-          'font-family:monospace', 'font-size:12px', 'line-height:1.4',
+          'font-family:monospace', 'font-size:11px', 'line-height:1.35',
           'padding:6px 8px', 'white-space:pre', 'pointer-events:none',
-          'transform:none', 'max-width:100vw', 'overflow:hidden'
+          'transform:none', 'max-width:100vw', 'max-height:100vh', 'overflow:hidden'
       ].join(';');
       document.documentElement.appendChild(box);
 
       function update() {
           const c = document.getElementById('container');
-          const cs = c ? getComputedStyle(c) : null;
           const rect = c ? c.getBoundingClientRect() : null;
           const bodyCs = getComputedStyle(document.body);
           const vv = window.visualViewport;
+
+          const h1 = document.querySelector('#headerSection h1');
+          const topUsersEl = document.getElementById('topUsers');
+          const headerSection = document.getElementById('headerSection');
+          const h1Rect = h1 ? h1.getBoundingClientRect() : null;
+          const tuRect = topUsersEl ? topUsersEl.getBoundingClientRect() : null;
+
           const lines = [
               `innerW/H: ${window.innerWidth} x ${window.innerHeight}`,
-              `docEl clientW/H: ${document.documentElement.clientWidth} x ${document.documentElement.clientHeight}`,
-              `docEl scrollW/H: ${document.documentElement.scrollWidth} x ${document.documentElement.scrollHeight}`,
-              `visualViewport: ${vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(3) : 'なし'}`,
+              `visualViewport: ${vv ? Math.round(vv.width) + 'x' + Math.round(vv.height) : 'なし'}`,
               `devicePixelRatio: ${window.devicePixelRatio}`,
               `body transform: ${bodyCs.transform}`,
-              `body textSizeAdjust: ${bodyCs.webkitTextSizeAdjust || bodyCs.textSizeAdjust || 'なし'}`,
               `container style W/H: ${c ? c.style.width : '?'} / ${c ? c.style.height : '?'}`,
               `container rect W/H: ${rect ? Math.round(rect.width) + ' x ' + Math.round(rect.height) : '?'}`,
+              `grid cols: ${c ? getComputedStyle(c).gridTemplateColumns : '?'}`,
+              `grid rows: ${c ? getComputedStyle(c).gridTemplateRows : '?'}`,
+              `--- header ---`,
+              `balanceHeader status: ${window.__balanceHeaderStatus || '(未実行)'}`,
+              `headerSection clientW: ${headerSection ? headerSection.clientWidth : '?'}`,
+              `h1 fontSize(computed): ${h1 ? getComputedStyle(h1).fontSize : '?'}`,
+              `h1 rect W/H: ${h1Rect ? Math.round(h1Rect.width) + ' x ' + Math.round(h1Rect.height) : '?'}`,
+              `topUsers rect W/H: ${tuRect ? Math.round(tuRect.width) + ' x ' + Math.round(tuRect.height) : '?'}`,
               `orientation: ${window.innerWidth <= window.innerHeight ? 'portrait' : 'landscape'}`,
+              `--- errors (最新5件) ---`,
+              ...(window.__jsErrors.length ? window.__jsErrors : ['(なし)']),
           ];
           box.textContent = lines.join('\n');
       }
@@ -152,6 +171,14 @@
   //   「h1幅 + topUsers幅 = 全体幅」かつ「h1高さ = topUsers高さ」を同時に満たすよう
   //   topUsersスケール s をバイナリサーチで求める。
   function balanceHeader() {
+      try {
+          balanceHeaderInner();
+          window.__balanceHeaderStatus = 'OK (run #' + (window.__balanceHeaderRunCount = (window.__balanceHeaderRunCount || 0) + 1) + ')';
+      } catch (e) {
+          window.__balanceHeaderStatus = 'ERROR: ' + (e && e.stack ? e.stack : String(e));
+      }
+  }
+  function balanceHeaderInner() {
       const h1 = document.querySelector('#headerSection h1');
       const topUsersEl = document.getElementById('topUsers');
       const headerSection = document.getElementById('headerSection');
