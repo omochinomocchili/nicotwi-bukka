@@ -33,6 +33,12 @@ html {
     overflow: hidden;
     width: 100%;
     height: 100%;
+    /* モバイルブラウザの「読みやすさのための自動文字拡大」を無効化。
+       このアプリは独自にscale/フォントサイズを計算しているため、
+       ブラウザ側の自動拡大と二重にかかってしまうと画面全体が異常に
+       大きくなる（特に横長で顕著）。 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 body {
     margin: 0;
@@ -47,6 +53,8 @@ body {
     transform-origin: 0 0;
     transform: scale(1);
     box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 /* ドット投稿：美咲ゴシック第2フォント */
