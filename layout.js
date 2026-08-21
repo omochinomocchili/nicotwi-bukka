@@ -262,25 +262,72 @@
   // 別途こちらでも再計算をトリガーする。
   //
   // 回転直後はwindow.innerWidth/innerHeightがまだ回転前の値のことがあり、その値で
-  // scaleを計算してしまうと文字サイズ等が誤って小さく(または大きく)固定されてしまう。
-  // 端末によって値が安定するまでの時間差があるため、
-  //   1) 150ms後に一度計算（多くの端末はこれで十分反映される）
-  //   2) 念のため500ms後にもう一度計算し直す（安定が遅い端末向けの保険）
-  // の2段構えにして、体感速度と正確さを両立させる。
+  // scaleを計算してしまうと文字サイズ等が誤って固定されてしまう。値が安定するまでの
+  // 時間は端末や回転の向き(縦→横 / 横→縦)によってバラつくため、固定の待ち時間で
+  // 決め打ちするのではなく、window.innerWidth/innerHeightの変化を実際に監視して、
+  // 値が変化している間はrequestImmediateLayout()で骨格だけ都度反映しつつ、
+  // 値が落ち着いた（連続で同じ値が読めた）タイミングでadjustOverallScale()を
+  // 確定実行する。万一いつまでも安定しない場合に備えて、最大1000msで打ち切る。
+  //
+  // 回転アニメーションの途中で一時的に値が足踏みする端末があると、それを
+  // 「安定した」と誤認してしまう恐れがあるため、連続で同じ値が読めた回数の
+  // しきい値は多少余裕を持たせている。それでも取りこぼした場合に備えて、
+  // 確定後にもう一度だけ検証し直す保険もかけておく。
+  let orientationSettleInterval = null;
+  let orientationVerifyTimeout = null;
+
   function handleOrientationChange() {
-      setTimeout(() => {
-          requestImmediateLayout();
-          debounceAdjustScale();
-      }, 150);
-      setTimeout(() => {
-          requestImmediateLayout();
-          adjustOverallScale();
-      }, 500);
+      if (orientationSettleInterval) {
+          clearInterval(orientationSettleInterval);
+          orientationSettleInterval = null;
+      }
+      if (orientationVerifyTimeout) {
+          clearTimeout(orientationVerifyTimeout);
+          orientationVerifyTimeout = null;
+      }
+
+      let lastW = -1, lastH = -1;
+      let stableCount = 0;
+      const startTime = Date.now();
+      const MAX_WAIT_MS = 1000;
+      const POLL_INTERVAL_MS = 50;
+      const STABLE_POLLS_NEEDED = 4; // 連続200ms値が変わらなければ「安定」とみなす
+
+      orientationSettleInterval = setInterval(() => {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          const elapsed = Date.now() - startTime;
+
+          if (w === lastW && h === lastH) {
+              stableCount++;
+          } else {
+              stableCount = 0;
+              lastW = w;
+              lastH = h;
+              requestImmediateLayout(); // 値が変わるたびに骨格だけ即時反映
+          }
+
+          if (stableCount >= STABLE_POLLS_NEEDED || elapsed >= MAX_WAIT_MS) {
+              clearInterval(orientationSettleInterval);
+              orientationSettleInterval = null;
+              requestImmediateLayout();
+              adjustOverallScale(); // 値が安定した状態で重い調整も込みで最終確定
+
+              // 保険: 回転アニメーションの一時停止を誤って「安定」と判定していた場合に
+              // 備えて、少し後にもう一度だけ最新の値で確認し直す
+              orientationVerifyTimeout = setTimeout(() => {
+                  requestImmediateLayout();
+                  adjustOverallScale();
+              }, 400);
+          }
+      }, POLL_INTERVAL_MS);
   }
+
   window.addEventListener('orientationchange', handleOrientationChange);
   if (window.screen && window.screen.orientation) {
       window.screen.orientation.addEventListener('change', handleOrientationChange);
   }
+
 
 
 
