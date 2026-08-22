@@ -12,9 +12,7 @@
 
 
 
-  let resizeTimeout;
   let immediateFrameRequested = false;
-  const RESIZE_DEBOUNCE_TIME = 150; // 重い再計算(balanceHeader等)の間引き用。以前は500msだった
 
   // 軽量パート: transform:scale・コンテナの論理サイズ・グリッド比率など、
   // window.innerWidth/Height から直接書き込むだけで済む(measure-then-writeの
@@ -115,7 +113,7 @@
                 updateTweetDisplay(div, tweet);
             }
         });
-    }, 250); // RESIZE_DEBOUNCE_TIME(150ms)より長く設定
+    }, 250); // レイアウトが確定してから少し余裕を持たせて実行
   }
 
   // ヘッダーバランス調整:
@@ -243,59 +241,33 @@
       }
   }
 
-  function debounceAdjustScale() {
-      console.log('[layout] resize検知、再計算を予約');
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-          try {
-              adjustOverallScale();
-              console.log('[layout] adjustOverallScale実行完了');
-          } catch (e) {
-              console.error('[layout] adjustOverallScaleでエラー:', e);
-          }
-      }, RESIZE_DEBOUNCE_TIME);
-  }
-
-  // 初回の adjustOverallScale() 呼び出しは、settings.js/timeline.js/comments.js の
-  // 読み込み完了後でないと中の参照(toggleLogDisplayCheckbox等)がエラーになるため、
-  // 最後に読み込まれる firebase.js 側で呼び出す。ここではイベント登録のみ行う。
+  // resize / orientationchange 共通の「値が安定するまで待ってから確定」処理。
   //
-  // resizeイベントごとに、まずrequestImmediateLayout()で骨格(scale/コンテナサイズ/
-  // グリッド比率)を即座に反映し、その少し後にdebounceAdjustScale()で重い調整
-  // (balanceHeader等)を行う。こうすることで「比率を変えてから見た目が追いつくまで」
-  // の体感ラグを大きく減らせる。
-  window.addEventListener('resize', () => {
-      requestImmediateLayout();
-      debounceAdjustScale();
-  });
-
-  // 画面回転（縦長⇔横長の切り替え）対応：
-  // orientationchangeは端末やブラウザによってresizeが確実に発火するとは限らないため、
-  // 別途こちらでも再計算をトリガーする。
+  // 以前はresizeイベントが単純な150msデバウンス、orientationchangeイベントが
+  // 値の安定待ち+検証つきのポーリング、という2つの独立した仕組みになっていた。
+  // 実機の回転では両方のイベントが発生することがあり、この2つが競合すると、
+  // orientationchange側が正しい値で確定した直後に、resize側の単純デバウンスが
+  // 古い(不安定な)値で上書きしてしまうことがあった。これが「縦→横の回転だけ
+  // まだ崩れる」の原因と考えられる。resize/orientationchangeのどちらから来ても
+  // 同じ経路で処理するよう統一し、この競合を無くす。
   //
-  // 回転直後はwindow.innerWidth/innerHeightがまだ回転前の値のことがあり、その値で
-  // scaleを計算してしまうと文字サイズ等が誤って固定されてしまう。値が安定するまでの
-  // 時間は端末や回転の向き(縦→横 / 横→縦)によってバラつくため、固定の待ち時間で
-  // 決め打ちするのではなく、window.innerWidth/innerHeightの変化を実際に監視して、
-  // 値が変化している間はrequestImmediateLayout()で骨格だけ都度反映しつつ、
-  // 値が落ち着いた（連続で同じ値が読めた）タイミングでadjustOverallScale()を
-  // 確定実行する。万一いつまでも安定しない場合に備えて、最大1000msで打ち切る。
-  //
-  // 回転アニメーションの途中で一時的に値が足踏みする端末があると、それを
-  // 「安定した」と誤認してしまう恐れがあるため、連続で同じ値が読めた回数の
-  // しきい値は多少余裕を持たせている。それでも取りこぼした場合に備えて、
-  // 確定後にもう一度だけ検証し直す保険もかけておく。
-  let orientationSettleInterval = null;
-  let orientationVerifyTimeout = null;
+  // 値が変化している間はrequestImmediateLayout()で骨格だけ都度即時反映しつつ、
+  // 値が連続で安定して読めたタイミングでadjustOverallScale()を確定実行する。
+  // 通常のウィンドウドラッグ操作でも、連続してresizeが発火している間は
+  // 都度リセットされるため、実質的に「操作が止まったら確定」というデバウンスと
+  // 同じように働く。万一いつまでも安定しない場合は最大1000msで打ち切り、
+  // さらに念のため確定後400ms後にもう一度だけ検証し直す。
+  let settleInterval = null;
+  let verifyTimeout = null;
 
-  function handleOrientationChange() {
-      if (orientationSettleInterval) {
-          clearInterval(orientationSettleInterval);
-          orientationSettleInterval = null;
+  function scheduleSettledFinalize() {
+      if (settleInterval) {
+          clearInterval(settleInterval);
+          settleInterval = null;
       }
-      if (orientationVerifyTimeout) {
-          clearTimeout(orientationVerifyTimeout);
-          orientationVerifyTimeout = null;
+      if (verifyTimeout) {
+          clearTimeout(verifyTimeout);
+          verifyTimeout = null;
       }
 
       let lastW = -1, lastH = -1;
@@ -305,7 +277,7 @@
       const POLL_INTERVAL_MS = 50;
       const STABLE_POLLS_NEEDED = 4; // 連続200ms値が変わらなければ「安定」とみなす
 
-      orientationSettleInterval = setInterval(() => {
+      settleInterval = setInterval(() => {
           const w = window.innerWidth;
           const h = window.innerHeight;
           const elapsed = Date.now() - startTime;
@@ -320,14 +292,14 @@
           }
 
           if (stableCount >= STABLE_POLLS_NEEDED || elapsed >= MAX_WAIT_MS) {
-              clearInterval(orientationSettleInterval);
-              orientationSettleInterval = null;
+              clearInterval(settleInterval);
+              settleInterval = null;
               requestImmediateLayout();
               adjustOverallScale(); // 値が安定した状態で重い調整も込みで最終確定
 
-              // 保険: 回転アニメーションの一時停止を誤って「安定」と判定していた場合に
-              // 備えて、少し後にもう一度だけ最新の値で確認し直す
-              orientationVerifyTimeout = setTimeout(() => {
+              // 保険: 一時的な足踏みを誤って「安定」と判定していた場合に備えて、
+              // 少し後にもう一度だけ最新の値で確認し直す
+              verifyTimeout = setTimeout(() => {
                   requestImmediateLayout();
                   adjustOverallScale();
               }, 400);
@@ -335,10 +307,25 @@
       }, POLL_INTERVAL_MS);
   }
 
-  window.addEventListener('orientationchange', handleOrientationChange);
+  // 初回の adjustOverallScale() 呼び出しは、settings.js/timeline.js/comments.js の
+  // 読み込み完了後でないと中の参照(toggleLogDisplayCheckbox等)がエラーになるため、
+  // 最後に読み込まれる firebase.js 側で呼び出す。ここではイベント登録のみ行う。
+  window.addEventListener('resize', () => {
+      requestImmediateLayout();
+      scheduleSettledFinalize();
+  });
+
+  window.addEventListener('orientationchange', () => {
+      requestImmediateLayout();
+      scheduleSettledFinalize();
+  });
   if (window.screen && window.screen.orientation) {
-      window.screen.orientation.addEventListener('change', handleOrientationChange);
+      window.screen.orientation.addEventListener('change', () => {
+          requestImmediateLayout();
+          scheduleSettledFinalize();
+      });
   }
+
 
 
 
