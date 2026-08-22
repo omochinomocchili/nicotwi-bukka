@@ -43,10 +43,13 @@ html {
 body {
     margin: 0;
     padding: 0;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh; /* モバイルのアドレスバー等でvhとの誤差が出ても隙間ができないように */
-    overflow: hidden;
+    /* width/heightを固定しない: #containerはtransform:scaleで縮小される前提で
+       わざと画面より大きく作られている。bodyを画面サイズぴったりに固定して
+       overflow:hiddenをかけると、縮小が適用される前の(大きいままの)段階で
+       中身が切り取られてしまう(ヘッダーやtwiAreaが消える原因になっていた)。
+       クリッピングは<html>側のoverflow:hiddenに任せ、bodyは中身のサイズに
+       そのまま追従させる。 */
+    overflow: visible;
     background: #0a1b2a; /* スクロール時などに下に隙間が見えても白飛びしないようにする保険 */
     font-family: 'GenZenGothicKaiC', sans-serif;
     font-size: 24px;
