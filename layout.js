@@ -260,33 +260,6 @@
   let settleInterval = null;
   let verifyTimeout = null;
 
-  // ---- 一時的なデバッグログ (原因調査用。解決したら削除する) ----
-  // 「最終的な値」だけでなく回転中に何が起きたかの時系列そのものを記録する
-  window.__transitionLog = [];
-  const __logStart = performance.now();
-  function __log(msg) {
-      const t = Math.round(performance.now() - __logStart);
-      window.__transitionLog.push(`${t}ms ${msg}`);
-      if (window.__transitionLog.length > 60) window.__transitionLog.shift();
-  }
-  function setupDebugOverlay() {
-      const box = document.createElement('div');
-      box.id = '__debugOverlay';
-      box.style.cssText = [
-          'position:fixed', 'top:0', 'left:0', 'z-index:999999',
-          'background:rgba(0,0,0,0.85)', 'color:#0f0',
-          'font-family:monospace', 'font-size:10px', 'line-height:1.3',
-          'padding:6px 8px', 'white-space:pre', 'pointer-events:none',
-          'transform:none', 'max-width:100vw', 'max-height:100vh', 'overflow:hidden'
-      ].join(';');
-      document.documentElement.appendChild(box);
-      setInterval(() => {
-          box.textContent = `now: ${window.innerWidth}x${window.innerHeight}  scale=${getComputedStyle(document.body).transform}\n--- 履歴(直近60件、上が新しい) ---\n` + window.__transitionLog.slice().reverse().join('\n');
-      }, 200);
-  }
-  setupDebugOverlay();
-  // ---- デバッグログここまで ----
-
   function scheduleSettledFinalize() {
       if (settleInterval) {
           clearInterval(settleInterval);
@@ -315,7 +288,6 @@
               stableCount = 0;
               lastW = w;
               lastH = h;
-              __log(`poll: ${w}x${h} (変化あり)`);
               requestImmediateLayout(); // 値が変わるたびに骨格だけ即時反映
           }
 
@@ -323,14 +295,12 @@
               clearInterval(settleInterval);
               settleInterval = null;
               requestImmediateLayout();
-              __log(`確定: adjustOverallScale(${w}x${h}) ${elapsed >= MAX_WAIT_MS ? '[タイムアウト]' : '[安定]'}`);
               adjustOverallScale(); // 値が安定した状態で重い調整も込みで最終確定
 
               // 保険: 一時的な足踏みを誤って「安定」と判定していた場合に備えて、
               // 少し後にもう一度だけ最新の値で確認し直す
               verifyTimeout = setTimeout(() => {
                   requestImmediateLayout();
-                  __log(`保険の再検証: ${window.innerWidth}x${window.innerHeight}`);
                   adjustOverallScale();
               }, 400);
           }
@@ -341,19 +311,16 @@
   // 読み込み完了後でないと中の参照(toggleLogDisplayCheckbox等)がエラーになるため、
   // 最後に読み込まれる firebase.js 側で呼び出す。ここではイベント登録のみ行う。
   window.addEventListener('resize', () => {
-      __log(`【resizeイベント】 ${window.innerWidth}x${window.innerHeight}`);
       requestImmediateLayout();
       scheduleSettledFinalize();
   });
 
   window.addEventListener('orientationchange', () => {
-      __log(`【orientationchangeイベント】 ${window.innerWidth}x${window.innerHeight}`);
       requestImmediateLayout();
       scheduleSettledFinalize();
   });
   if (window.screen && window.screen.orientation) {
       window.screen.orientation.addEventListener('change', () => {
-          __log(`【screen.orientation.changeイベント】 ${window.innerWidth}x${window.innerHeight}`);
           requestImmediateLayout();
           scheduleSettledFinalize();
       });
