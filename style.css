@@ -1074,34 +1074,34 @@ body.rainbow-anim-off .rainbow-char:nth-of-type(6n+6) { color: #BF00FF !importan
 }
 
 /* 投稿ログ（tweetStream）側の文字サイズ（小・中・大） */
-.tweet-text-content.size-small { font-size: 20px; }
-.tweet-text-content.size-medium { font-size: 30px; }
-.tweet-text-content.size-large { font-size: 42px; }
+.tweet-text-content.size-small { font-size: 17px; }
+.tweet-text-content.size-medium { font-size: 26px; }
+.tweet-text-content.size-large { font-size: 36px; }
 
 .tweet-text-content.size-small .part-upper,
 .tweet-text-content.size-small .part-lower {
-    font-size: 21px !important;
+    font-size: 18px !important;
 }
 .tweet-text-content.size-large .part-upper,
 .tweet-text-content.size-large .part-lower {
-    font-size: 44px !important;
+    font-size: 38px !important;
 }
 
 @media (max-aspect-ratio: 1/1) {
     /* .tweet本体と同じ比率(27px→33px)で縦長時に本文サイズも拡大する。
        ここが無いと、chrome(ユーザー名等)だけ大きくなり本文が相対的に
        小さく見えてしまう */
-    .tweet-text-content.size-small { font-size: 24px; }
-    .tweet-text-content.size-medium { font-size: 37px; }
-    .tweet-text-content.size-large { font-size: 51px; }
+    .tweet-text-content.size-small { font-size: 21px; }
+    .tweet-text-content.size-medium { font-size: 32px; }
+    .tweet-text-content.size-large { font-size: 44px; }
 
     .tweet-text-content.size-small .part-upper,
     .tweet-text-content.size-small .part-lower {
-        font-size: 26px !important;
+        font-size: 22px !important;
     }
     .tweet-text-content.size-large .part-upper,
     .tweet-text-content.size-large .part-lower {
-        font-size: 54px !important;
+        font-size: 46px !important;
     }
 }
 
