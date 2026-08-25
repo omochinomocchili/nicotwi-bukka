@@ -445,7 +445,9 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
         // フローティング表示より先にキューに積んで遅延を最小化
         enqueueSpeech(data.text, data.color);
         if (data.type === 'center_fixed') {
-            showCenterFixedComment(key, data.text, data.color, data.timestamp, false, data.size || 'medium');
+            buildFloatingTextWithQuote(data).then(quotedText => {
+                showCenterFixedComment(key, quotedText, data.color, data.timestamp, false, data.size || 'medium');
+            });
         } else if (data.quote) {
             buildFloatingTextWithQuote(data).then(quotedText => {
                 showFloatingComment(key, quotedText, data.color, data.timestamp, false, data.size || 'medium');
@@ -600,7 +602,7 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
 
       const quotedName = (found.data.name && found.data.name.trim()) ? found.data.name : '名無し';
       const bodyHtml = buildQuoteCardContentHtml(found.data);
-      previewEl.innerHTML = `<div class="quote-preview-header">#${quoteNumber} @${quotedName}</div><div class="quote-preview-body">${bodyHtml}</div>`;
+      previewEl.innerHTML = `<div class="quote-preview-header">#${quoteNumber} @<span class="quote-preview-name">${quotedName}</span></div><div class="quote-preview-body">${bodyHtml}</div>`;
       previewEl.style.display = 'block';
   }
 

@@ -676,6 +676,9 @@ button:disabled {
     color: #8ab4e8;
     margin-bottom: 3px;
 }
+.quote-preview-header .quote-preview-name {
+    font-family: 'GenZenGothicKaiC', sans-serif;
+}
 .quote-preview-body {
     color: #cfd8e3;
     font-size: 20px;
@@ -705,11 +708,11 @@ button:disabled {
     padding: 8px 15px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     margin-bottom: 8px;
-    font-size: 22px; /* 横長(デフォルト)は少し小さめ */
+    font-size: 24px; /* 横長(デフォルト)は少し小さめ */
     overflow: visible;
 }
 @media (max-aspect-ratio: 1/1) {
-    .tweet { font-size: 26px; } /* 縦長は少し大きめ */
+    .tweet { font-size: 30px; } /* 縦長は少し大きめ */
 }
 .tweet-meta-namegroup { grid-area: namegroup; }
 .tweet-meta-timestamp { grid-area: timestamp; justify-self: end; }
@@ -866,10 +869,11 @@ button:disabled {
     color: #87CEEB;
     cursor: pointer;
     font-size: 22px;
+    font-family: 'k8x12S', sans-serif;
     padding: 0;
     margin-top: 5px;
     display: block;
-    text-align: right;
+    text-align: left;
 }
 .tweet-meta-actions .reaction-btn,
 .tweet-meta-actions .requote-btn {
@@ -1074,34 +1078,34 @@ body.rainbow-anim-off .rainbow-char:nth-of-type(6n+6) { color: #BF00FF !importan
 }
 
 /* 投稿ログ（tweetStream）側の文字サイズ（小・中・大） */
-.tweet-text-content.size-small { font-size: 14px; }
-.tweet-text-content.size-medium { font-size: 21px; }
-.tweet-text-content.size-large { font-size: 29px; }
+.tweet-text-content.size-small { font-size: 18px; }
+.tweet-text-content.size-medium { font-size: 27px; }
+.tweet-text-content.size-large { font-size: 38px; }
 
 .tweet-text-content.size-small .part-upper,
 .tweet-text-content.size-small .part-lower {
-    font-size: 14px !important;
+    font-size: 19px !important;
 }
 .tweet-text-content.size-large .part-upper,
 .tweet-text-content.size-large .part-lower {
-    font-size: 30px !important;
+    font-size: 40px !important;
 }
 
 @media (max-aspect-ratio: 1/1) {
     /* .tweet本体と同じ比率で縦長時に本文サイズも拡大する。
        ここが無いと、chrome(ユーザー名等)だけ大きくなり本文が相対的に
        小さく見えてしまう */
-    .tweet-text-content.size-small { font-size: 17px; }
-    .tweet-text-content.size-medium { font-size: 26px; }
-    .tweet-text-content.size-large { font-size: 35px; }
+    .tweet-text-content.size-small { font-size: 22px; }
+    .tweet-text-content.size-medium { font-size: 33px; }
+    .tweet-text-content.size-large { font-size: 46px; }
 
     .tweet-text-content.size-small .part-upper,
     .tweet-text-content.size-small .part-lower {
-        font-size: 18px !important;
+        font-size: 23px !important;
     }
     .tweet-text-content.size-large .part-upper,
     .tweet-text-content.size-large .part-lower {
-        font-size: 37px !important;
+        font-size: 49px !important;
     }
 }
 

@@ -122,7 +122,8 @@ function getFloatingCommentYPosition(durationMs) { // durationMs が正確か確
         status.textContent = `再現中: tweetナンバー${data.tweetNumber} (${idx + 1}/${entries.length}件)`;
         if (data) {
             if (data.type === 'center_fixed') {
-                showCenterFixedComment(key + '_r' + idx, data.text, data.color, Date.now(), true, data.size || 'medium');
+                const displayText = await buildFloatingTextWithQuote(data);
+                showCenterFixedComment(key + '_r' + idx, displayText, data.color, Date.now(), true, data.size || 'medium');
             } else {
                 const quotedText = await buildFloatingTextWithQuote(data);
                 showFloatingCommentReplay(key + '_r' + idx, quotedText, data.color, data.size || 'medium');
