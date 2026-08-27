@@ -602,7 +602,7 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
 
       const quotedName = (found.data.name && found.data.name.trim()) ? found.data.name : '名無し';
       const bodyHtml = buildQuoteCardContentHtml(found.data);
-      previewEl.innerHTML = `<div class="quote-preview-header">#${quoteNumber} @<span class="quote-preview-name">${quotedName}</span></div><div class="quote-preview-body">${bodyHtml}</div>`;
+      previewEl.innerHTML = `<div class="quote-preview-header">#${quoteNumber} <span class="quote-preview-name">@${quotedName}</span></div><div class="quote-preview-body">${bodyHtml}</div>`;
       previewEl.style.display = 'block';
   }
 
