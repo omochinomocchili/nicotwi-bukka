@@ -140,7 +140,18 @@
 
         sortedAllUsers.forEach(([user, count]) => {
             const li = document.createElement('li');
-            li.textContent = `${user}: ${count} 件`;
+            // 名前と件数を別spanに分離する。CSS側で.rank-nameだけに省略(ellipsis)をかけ、
+            // .rank-countはflex-shrink:0等で常に全文表示させるための構造。
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'rank-name';
+            nameSpan.textContent = `${user}:`;
+
+            const countSpan = document.createElement('span');
+            countSpan.className = 'rank-count';
+            countSpan.textContent = `${count} 件`;
+
+            li.appendChild(nameSpan);
+            li.appendChild(countSpan);
             allUserList.appendChild(li);
         });
     }
