@@ -457,15 +457,16 @@ body.comment-only #concurrentUsers { display: none; }
     padding-left: 20px;
     margin: 0;
     display: flex;
-    flex-direction: column; /* 2カラム→1カラム: 横方向のwrapをやめて縦に1列で並べる */
+    flex-wrap: wrap; /* 横に余裕があれば自然に複数個並び、足りなければ折り返す */
 }
 #allUsers li {
     font-size: 24px;
     margin-bottom: 8px;
-    width: 100%;
+    margin-right: 15px;
     display: flex; /* .rank-name と .rank-count を横並びにする */
     align-items: baseline;
     gap: 4px;
+    max-width: 100%; /* 1件だけで行幅を超える極端なケースの保険 */
     min-width: 0; /* 子要素(.rank-name)を内容幅未満に縮められるようにする */
 }
 #allUsers li .rank-name {
