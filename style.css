@@ -325,6 +325,14 @@ body.comment-only #concurrentUsers { display: none; }
     overflow: hidden;
 }
 
+/* h1がロゴ画像の場合: 幅はJS(layout.jsのbalanceHeader)が直接style.widthを
+   指定するので、ブラウザ側のimg既定の縮小・引き延ばしが起きないようにする */
+#headerSection h1 img {
+    display: block;
+    max-width: none;
+    height: auto;
+}
+
 /* TOP3ランキング */
 #topUsers {
     background: #1a3a5a;

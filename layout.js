@@ -125,6 +125,10 @@
       const headerSection = document.getElementById('headerSection');
       if (!h1 || !topUsersEl || !headerSection) return;
 
+      // h1の中身がロゴ画像かどうかで、サイズ調整の方式を分ける
+      // （画像はfont-sizeでは大きさが変わらないため）
+      const h1Img = h1.querySelector('img');
+
       // h1をflexから外してscrollWidthを正確に計測できるようにする
       h1.style.flex = 'none';
       h1.style.width = 'auto';
@@ -144,70 +148,117 @@
           if (h3) h3.style.fontSize = (H3_BASE * s) + 'px';
           lis.forEach(li => li.style.fontSize = (LI_BASE * s) + 'px');
       }
-
-      // h1がmaxW幅に収まる最大フォントサイズ
-      function h1FontForWidth(maxW) {
-          let lo = 1, hi = 600;
-          while (lo < hi) {
-              const mid = Math.ceil((lo + hi) / 2);
-              h1.style.fontSize = mid + 'px';
-              if (h1.scrollWidth <= maxW) lo = mid;
-              else hi = mid - 1;
-          }
-          h1.style.fontSize = lo + 'px';
-          return lo;
-      }
-
-      // h1がtargetH高さに収まる最大フォントサイズ
-      function h1FontForHeight(targetH) {
-          let lo = 1, hi = 600;
-          while (lo < hi) {
-              const mid = Math.ceil((lo + hi) / 2);
-              h1.style.fontSize = mid + 'px';
-              if (h1.offsetHeight <= targetH) lo = mid;
-              else hi = mid - 1;
-          }
-          h1.style.fontSize = lo + 'px';
-          return lo;
-      }
-
-      // topUsersスケール s のバイナリサーチ
-      let slo = 0.2, shi = 8.0;
-      for (let iter = 0; iter < 50; iter++) {
-          const smid = (slo + shi) / 2;
-          applyScale(smid);
-          const tuW = topUsersEl.offsetWidth;
-          const tuH = topUsersEl.offsetHeight;
-          const remW = totalWidth - tuW;
-
-          if (remW < 10) { shi = smid; continue; }
-
-          const fw = h1FontForWidth(remW);
-          const fh = h1FontForHeight(tuH);
-
-          if (fw > fh) slo = smid;
-          else shi = smid;
-
-          if (shi - slo < 0.005) break;
-      }
-
-      // 均衡点をフルスケールで記録（h1の高さ制約に使う）
-      const sEquil = (slo + shi) / 2;
-      applyScale(sEquil);
-      const tuHEquil = topUsersEl.offsetHeight; // TOPUSERS_SCALE適用前の高さ
-
-      // 横長時のみTOPUSERS_SCALEを適用してtopUsersを縮小
       const LANDSCAPE_MARGIN = 30; // ランキングの右余白(px)
-      applyScale(sEquil * (_portrait ? 1.0 : TOPUSERS_SCALE));
 
-      // h1: 縮小後の残り幅からLANDSCAPE_MARGINを引き、高さは均衡点基準
-      const remWFinal = totalWidth - topUsersEl.offsetWidth
-                        - (_portrait ? 0 : LANDSCAPE_MARGIN);
-      const fwFinal = h1FontForWidth(remWFinal);
-      const fhFinal = h1FontForHeight(tuHEquil); // 均衡点の高さで制約
-      h1.style.fontSize = Math.min(fwFinal, fhFinal) + 'px';
-      // 幅を明示固定して被りを完全に防ぐ
-      h1.style.width = remWFinal + 'px';
+      if (h1Img) {
+          // ロゴ画像版: フォントサイズの代わりに、アスペクト比を保ったimgの幅で
+          // 「残り幅(remW) を使い切った時の高さ」と「topUsersの高さ」が
+          // 釣り合う点をtopUsersスケールsの二分探索で求める。
+          const naturalW = h1Img.naturalWidth;
+          const naturalH = h1Img.naturalHeight;
+          if (!naturalW || !naturalH) return; // 画像未読込。load時に再実行されるので今回は何もしない
+          const aspectRatio = naturalW / naturalH;
+
+          let slo = 0.2, shi = 8.0;
+          for (let iter = 0; iter < 50; iter++) {
+              const smid = (slo + shi) / 2;
+              applyScale(smid);
+              const tuW = topUsersEl.offsetWidth;
+              const tuH = topUsersEl.offsetHeight;
+              const remW = totalWidth - tuW;
+
+              if (remW < 10) { shi = smid; continue; }
+
+              // remW幅いっぱいに画像を広げたときの高さ vs topUsersの高さ
+              const widthBasedHeight = remW / aspectRatio;
+              if (widthBasedHeight > tuH) slo = smid; // 幅基準の方が高くなる→高さがネック→sを増やす
+              else shi = smid;
+
+              if (shi - slo < 0.005) break;
+          }
+
+          const sEquil = (slo + shi) / 2;
+          applyScale(sEquil);
+          const tuHEquil = topUsersEl.offsetHeight; // TOPUSERS_SCALE適用前の高さ
+
+          // 横長時のみTOPUSERS_SCALEを適用してtopUsersを縮小
+          applyScale(sEquil * (_portrait ? 1.0 : TOPUSERS_SCALE));
+
+          // img: 縮小後の残り幅からLANDSCAPE_MARGINを引き、高さは均衡点基準
+          const remWFinal = totalWidth - topUsersEl.offsetWidth
+                            - (_portrait ? 0 : LANDSCAPE_MARGIN);
+          const heightConstrainedWidth = tuHEquil * aspectRatio;
+          const finalWidth = Math.max(1, Math.min(remWFinal, heightConstrainedWidth));
+
+          h1Img.style.width = finalWidth + 'px';
+          h1Img.style.height = 'auto';
+          h1.style.width = remWFinal + 'px';
+      } else {
+          // テキスト版（従来ロジック）
+          // h1がmaxW幅に収まる最大フォントサイズ
+          function h1FontForWidth(maxW) {
+              let lo = 1, hi = 600;
+              while (lo < hi) {
+                  const mid = Math.ceil((lo + hi) / 2);
+                  h1.style.fontSize = mid + 'px';
+                  if (h1.scrollWidth <= maxW) lo = mid;
+                  else hi = mid - 1;
+              }
+              h1.style.fontSize = lo + 'px';
+              return lo;
+          }
+
+          // h1がtargetH高さに収まる最大フォントサイズ
+          function h1FontForHeight(targetH) {
+              let lo = 1, hi = 600;
+              while (lo < hi) {
+                  const mid = Math.ceil((lo + hi) / 2);
+                  h1.style.fontSize = mid + 'px';
+                  if (h1.offsetHeight <= targetH) lo = mid;
+                  else hi = mid - 1;
+              }
+              h1.style.fontSize = lo + 'px';
+              return lo;
+          }
+
+          // topUsersスケール s のバイナリサーチ
+          let slo = 0.2, shi = 8.0;
+          for (let iter = 0; iter < 50; iter++) {
+              const smid = (slo + shi) / 2;
+              applyScale(smid);
+              const tuW = topUsersEl.offsetWidth;
+              const tuH = topUsersEl.offsetHeight;
+              const remW = totalWidth - tuW;
+
+              if (remW < 10) { shi = smid; continue; }
+
+              const fw = h1FontForWidth(remW);
+              const fh = h1FontForHeight(tuH);
+
+              if (fw > fh) slo = smid;
+              else shi = smid;
+
+              if (shi - slo < 0.005) break;
+          }
+
+          // 均衡点をフルスケールで記録（h1の高さ制約に使う）
+          const sEquil = (slo + shi) / 2;
+          applyScale(sEquil);
+          const tuHEquil = topUsersEl.offsetHeight; // TOPUSERS_SCALE適用前の高さ
+
+          // 横長時のみTOPUSERS_SCALEを適用してtopUsersを縮小
+          applyScale(sEquil * (_portrait ? 1.0 : TOPUSERS_SCALE));
+
+          // h1: 縮小後の残り幅からLANDSCAPE_MARGINを引き、高さは均衡点基準
+          const remWFinal = totalWidth - topUsersEl.offsetWidth
+                            - (_portrait ? 0 : LANDSCAPE_MARGIN);
+          const fwFinal = h1FontForWidth(remWFinal);
+          const fhFinal = h1FontForHeight(tuHEquil); // 均衡点の高さで制約
+          h1.style.fontSize = Math.min(fwFinal, fhFinal) + 'px';
+          // 幅を明示固定して被りを完全に防ぐ
+          h1.style.width = remWFinal + 'px';
+      }
+
       // ランキング右余白（横長時のみ）
       topUsersEl.style.marginRight = _portrait ? '' : LANDSCAPE_MARGIN + 'px';
 
@@ -240,6 +291,16 @@
           }
       }
   }
+
+  // h1がロゴ画像の場合、画像の読み込みが遅れて先にbalanceHeader()が
+  // 呼ばれてしまう（naturalWidth等が取れず何もしない）ことがあるため、
+  // 読み込み完了時に一度だけ再計算する。
+  (function watchHeaderLogoLoad() {
+      const headerImg = document.querySelector('#headerSection h1 img');
+      if (headerImg && !headerImg.complete) {
+          headerImg.addEventListener('load', () => balanceHeader(), { once: true });
+      }
+  })();
 
   // resize / orientationchange 共通の「値が安定するまで待ってから確定」処理。
   //
