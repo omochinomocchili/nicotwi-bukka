@@ -983,12 +983,11 @@ button:disabled {
 
 /* -webkit-line-clampで省略表示中の要素をロングタップ選択し、
    クランプ範囲より下までドラッグすると、ブラウザが本来隠れているはずの
-   範囲まで描画してしまい表示が崩れることがある。「もっと見る」で
-   展開済み(.expanded等)になるまでは選択自体を無効化して回避する。 */
-.tweet p:not(.expanded),
-.tweet-text-content:not(.expanded),
-.split-special.clamped,
-.quote-card-body:not(.quote-card-expanded),
+   範囲まで描画してしまい表示が崩れることがある。実際に省略が効いていて
+   「もっと見る」が表示されている場合だけ選択を無効化し、短くて
+   省略の必要がない投稿はこれまで通り選択できるようにする。 */
+.tweet-text-content:not(.expanded):not(.no-toggle),
+.quote-card-body:has(+ .quote-card-toggle):not(.quote-card-expanded),
 .log-content.shortened,
 .log-content.shortened-5000 {
     -webkit-user-select: none;
