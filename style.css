@@ -84,7 +84,7 @@ body {
     position: relative;
 }
 
-@media (max-aspect-ratio: 1/1) {
+@media (max-aspect-ratio: 4/5) {
     #container {
         /* 縦長: 1カラムで上から nicoArea → ヘッダー → フォーム → twiArea の順に積む */
         grid-template-columns: 1fr;
@@ -96,6 +96,22 @@ body {
             "twi";
     }
     /* .tweetの縦長時フォントサイズは、基本ルールより後ろに置く必要があるため下のセクションで指定 */
+}
+
+/* 正方形帯(1:1付近): 縦長・横長どちらとも言えない比率のときの第3レイアウト。
+   上段にnicoAreaを固定高さ(layout.jsのapplyImmediateLayout()側で
+   画面高さ×9/32を設定)で置き、下段を左(ヘッダー+フォーム)/右(twiArea)に分割する。
+   縦長・横長それぞれのgrid-template自体はこのブロックの外なので変更していない。
+   4/5〜5/4 (0.8〜1.25) の範囲を「正方形」とみなす。 */
+@media (min-aspect-ratio: 4/5) and (max-aspect-ratio: 5/4) {
+    #container {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 9fr auto 1fr; /* 実際の比率(9/32)はJS側で明示的なpx指定に上書きされる */
+        grid-template-areas:
+            "nico   nico"
+            "header twi"
+            "form   twi";
+    }
 }
 
 /* コメントのみモード */
@@ -308,9 +324,10 @@ body.comment-only #concurrentUsers { display: none; }
     padding: 25px;
 }
 
-@media (max-aspect-ratio: 1/1) {
+@media (max-aspect-ratio: 4/5) {
     /* 縦長ではformArea・twiAreaが縦に隣接するため、双方の25pxパディングが
-       合算されて隙間が広がりすぎる。twiArea側の上パディングだけに任せる */
+       合算されて隙間が広がりすぎる。twiArea側の上パディングだけに任せる。
+       正方形帯ではform/twiが縦に隣接しない(左下/右側の配置)ため対象外。 */
     #formArea { padding-bottom: 0; }
 }
 
@@ -729,7 +746,7 @@ button:disabled {
     font-size: 24px; /* 横長(デフォルト)は少し小さめ */
     overflow: visible;
 }
-@media (max-aspect-ratio: 1/1) {
+@media (max-aspect-ratio: 4/5) {
     .tweet { font-size: 30px; } /* 縦長は少し大きめ */
 }
 .tweet-meta-namegroup { grid-area: namegroup; }
@@ -1122,7 +1139,7 @@ body.rainbow-anim-off .rainbow-char:nth-of-type(6n+6) { color: #BF00FF !importan
     font-size: 40px !important;
 }
 
-@media (max-aspect-ratio: 1/1) {
+@media (max-aspect-ratio: 4/5) {
     /* .tweet本体と同じ比率で縦長時に本文サイズも拡大する。
        ここが無いと、chrome(ユーザー名等)だけ大きくなり本文が相対的に
        小さく見えてしまう */
