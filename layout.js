@@ -33,8 +33,8 @@
     // scaleの計算・grid-templateの設定どちらでも使うため、先にまとめて判定しておく。
     // 縦長・横長それぞれの閾値・計算式自体は変更しない。
     const aspectRatio = windowWidth / windowHeight;
-    const SQUARE_MIN_RATIO = 4 / 5; // 0.8
-    const SQUARE_MAX_RATIO = 5 / 4; // 1.25
+    const SQUARE_MIN_RATIO = 2 / 3; // 約0.667
+    const SQUARE_MAX_RATIO = 3 / 2; // 1.5
     const isPortrait = aspectRatio < SQUARE_MIN_RATIO;
     const isSquare = aspectRatio >= SQUARE_MIN_RATIO && aspectRatio <= SQUARE_MAX_RATIO;
     const logShown = toggleLogDisplayCheckbox.checked;
