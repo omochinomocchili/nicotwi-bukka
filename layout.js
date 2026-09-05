@@ -29,12 +29,36 @@
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
 
+    // 縦長/横長に加えて、1:1付近の「正方形帯」を専用の第3レイアウトとして扱う。
+    // scaleの計算・grid-templateの設定どちらでも使うため、先にまとめて判定しておく。
+    // 縦長・横長それぞれの閾値・計算式自体は変更しない。
+    const aspectRatio = windowWidth / windowHeight;
+    const SQUARE_MIN_RATIO = 4 / 5; // 0.8
+    const SQUARE_MAX_RATIO = 5 / 4; // 1.25
+    const isPortrait = aspectRatio < SQUARE_MIN_RATIO;
+    const isSquare = aspectRatio >= SQUARE_MIN_RATIO && aspectRatio <= SQUARE_MAX_RATIO;
+    const logShown = toggleLogDisplayCheckbox.checked;
+
     let scale;
 
-    if (!toggleLogDisplayCheckbox.checked) { 
+    if (!logShown) {
         scale = Math.min(windowWidth / 800, windowHeight / 600);
         scale = Math.min(scale, 1.0);
-    } else { 
+    } else if (isSquare) {
+        // 正方形帯: タブのページズームを50%にすると全体のバランスが良くなる、
+        // という手動での確認結果を式に組み込んだもの。
+        // ページズーム50%は実質的にwindow.innerWidth/innerHeightが2倍になった状態と
+        // 等価で、それを下の通常式に通すと「windowWidth/800によるクランプの効きが
+        // windowWidth/400相当になる」→ 結果的に「通常のクランプ上下限(0.5〜1.0)を
+        // そのまま半分(0.25〜0.5)にし、windowWidth/800の閾値はそのまま」と同じ値になる
+        // ことが計算で確認できたため、ズーム操作なしで直接その式を使う。
+        scale = (windowHeight * 1.5) / Math.max(windowWidth, windowHeight);
+        scale = Math.max(0.25, scale);
+        scale = Math.min(0.5, scale);
+        if (windowWidth < windowHeight) {
+            scale = Math.min(scale, windowWidth / 800);
+        }
+    } else {
         scale = (windowHeight * 1.5) / Math.max(windowWidth, windowHeight);
         scale = Math.max(0.5, scale);
         scale = Math.min(1.0, scale);
@@ -59,14 +83,6 @@
     container.style.maxHeight = `${scaledLogicalHeight}px`;
 
     // ログ表示中の比率調整。
-    // 縦長/横長に加えて、1:1付近の「正方形帯」を専用の第3レイアウトとして扱う。
-    // 縦長・横長それぞれの閾値・計算式自体は変更しない。
-    const aspectRatio = windowWidth / windowHeight;
-    const SQUARE_MIN_RATIO = 4 / 5; // 0.8
-    const SQUARE_MAX_RATIO = 5 / 4; // 1.25
-    const isPortrait = aspectRatio < SQUARE_MIN_RATIO;
-    const isSquare = aspectRatio >= SQUARE_MIN_RATIO && aspectRatio <= SQUARE_MAX_RATIO;
-    const logShown = toggleLogDisplayCheckbox.checked;
     if (isPortrait && logShown) {
         // 縦長: nicoArea高さ = 幅 × 9/16 → フローティングエリアが 縦:横 = 9:16 になる
         // grid-template-rows は [nico, header, form, twi] の1カラム構成。
@@ -77,11 +93,11 @@
     } else if (isSquare && logShown) {
         // 正方形帯(1:1付近): 上段にnicoAreaを固定高さで、下段を
         // 左(ヘッダー+フォーム)/右(twiArea)に分割する第3レイアウト。
-        // nicoAreaの高さ = 画面高さ × 9/32（縦長レイアウトでのnicoArea高さ目安 9/16 の半分）。
+        // nicoAreaの高さ = 画面高さ × 9/24。
         // grid-template-areasはstyle.css側の専用メディアクエリで
         // "nico nico" / "header twi" / "form twi" に定義済みなので、
         // ここでは行の高さ配分（nico固定・header中身なり・twiが残り1frで吸収）だけを渡す。
-        const targetNicoH = scaledLogicalHeight * 9 / 32;
+        const targetNicoH = scaledLogicalHeight * 9 / 24;
         container.style.gridTemplateRows = `${targetNicoH}px auto 1fr`;
         container.style.gridTemplateColumns = '';
     } else if (!isPortrait && !isSquare && logShown) {
