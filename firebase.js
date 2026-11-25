@@ -1,7 +1,7 @@
 // =============================================================
 // firebase.js — Firebase関連処理
 // 初期化、投稿の取得(初期ロード/リアルタイム監視/新着・話題タブ切替)、
-// 投稿送信、👍の更新、読み取り/書き込み数の管理、バージョンチェック。
+// 投稿送信、👍の更新、匿名認証、同時接続管理、バージョンチェック。
 // Firebaseへの読み書きはすべてこのファイルに集約している。
 // 依存: utils.js, settings.js(form等), timeline.js(appendTweetToStream等), ranking.js(scheduleUpdateUserStats)
 // =============================================================
@@ -18,15 +18,11 @@
   };
 
   firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
   const db = firebase.database();
   const concurrentUsersDiv = document.getElementById('concurrentUsers');
   const submitButton = form.querySelector('button[type="submit"]'); 
   const usageWarningDiv = document.getElementById('usageWarning');
-  const usageStatsRef = db.ref('usageStats');
-  const lastAccessTimestampRef = usageStatsRef.child('lastAccessTimestamp');
-  const writeCountRef = usageStatsRef.child('writeCount');
-  const readCountRef = usageStatsRef.child('readCount');
-  const tweetsCountRef = db.ref('tweetsCount');
   const totalTweetCountRef = db.ref('config/totalTweetCount'); // 累計コメント番号（削除されても増え続ける）
   // --- バージョンチェック関連の追加 ---
   const VERSION_CONFIG_REF = db.ref('config/current_version_key'); // Firebase上のバージョンキーのパス
@@ -38,17 +34,33 @@
   let userRecentPosts = {}; 
   let userLastPostTime = {}; // 各ユーザーの最終投稿時刻を記録する
   
-  let currentReadCount = 0; 
-  let currentWriteCount = 0; 
-  let currentTweetCount = 0; 
   
-let firebaseUserId = localStorage.getItem('firebaseUserId');
-if (!firebaseUserId) {
-    firebaseUserId = db.ref().push().key;
-    localStorage.setItem('firebaseUserId', firebaseUserId);
-}
-// currentUser は一意のIDとしてconstで定義する（変更しない）
-const currentUser = firebaseUserId;
+let currentUser = null;
+let presenceTrackingInitialized = false;
+
+const authReady = new Promise((resolve, reject) => {
+    let unsubscribe = () => {};
+
+    unsubscribe = auth.onAuthStateChanged(
+        (user) => {
+            unsubscribe();
+
+            const authentication = user
+                ? Promise.resolve(user)
+                : auth.signInAnonymously().then((credential) => credential.user);
+
+            authentication.then((authenticatedUser) => {
+                currentUser = authenticatedUser.uid;
+                console.log("Firebase anonymous authentication ready.");
+                resolve(currentUser);
+            }).catch(reject);
+        },
+        (error) => {
+            unsubscribe();
+            reject(error);
+        }
+    );
+});
 
 const nicknameInput = document.getElementById('nickname');
 
@@ -59,46 +71,10 @@ if (savedUserName) {
 }
 
 // nicknameInputのイベントリスナー
-// currentUserを上書きしないように修正
 nicknameInput.addEventListener('input', (e) => {
     // ユーザー名をlocalStorageに保存するだけ
     localStorage.setItem('userName', e.target.value);
 });
-  async function initializeUsageMonitoring() {
-      const lastAccessSnapshot = await lastAccessTimestampRef.once('value');
-      const lastAccessTimestamp = lastAccessSnapshot.val();
-
-      if (isNewDay(lastAccessTimestamp)) {
-          console.log("日付が変わったため、使用量カウントをリセットします。");
-          await writeCountRef.set(0);
-          await readCountRef.set(0);
-          await lastAccessTimestampRef.set(Date.now());
-      } else {
-          console.log("日付は変わっていません。既存のカウントを読み込みます。");
-      }
-
-      readCountRef.on('value', (snapshot) => {
-          currentReadCount = snapshot.val() || 0;
-      });
-
-      writeCountRef.on('value', (snapshot) => {
-          currentWriteCount = snapshot.val() || 0;
-      });
-
-      tweetsCountRef.on('value', (snapshot) => {
-          currentTweetCount = snapshot.val() || 0;
-          checkTweetLimit();
-      });
-
-      setInterval(() => {
-          lastAccessTimestampRef.set(Date.now()).catch(e => console.error("Failed to update lastAccessTimestamp:", e));
-      }, 60 * 1000); 
-  }
-
-
-  function checkTweetLimit() {
-      console.log(`Current Usage: Reads: ${currentReadCount}, Writes: ${currentWriteCount}, Tweets: ${currentTweetCount}`);
-  }
 
      // --- インターネット接続監視ロジック ---
 function updateConnectionStatus() {
@@ -126,41 +102,6 @@ updateConnectionStatus();
 // （settings.js内のinitializeLogDisplayModeは、内部でadjustOverallScale()を呼ぶため
 //   timeline.js/comments.js の読み込み完了後である必要があり、最後に読み込まれるここで呼び出す）
 initializeLogDisplayMode();
-
-  // readCountは1件ごとにFirebaseへ書き込むと重くなるため、ローカルで貯めて500msごとにまとめて反映する
-  let pendingReadCount = 0;
-  let readCountFlushTimer = null;
-  function incrementReadCount() {
-      pendingReadCount++;
-      if (readCountFlushTimer) return; // 既に予約済みなら何もしない（このタイミングでまとめて加算される）
-      readCountFlushTimer = setTimeout(() => {
-          readCountFlushTimer = null;
-          const toAdd = pendingReadCount;
-          pendingReadCount = 0;
-          if (toAdd <= 0) return;
-          readCountRef.transaction((currentCount) => {
-              return (currentCount || 0) + toAdd;
-          }).catch(e => console.error("Failed to increment readCount:", e));
-      }, 500);
-  }
-
-  async function incrementWriteCount() {
-      await writeCountRef.transaction((currentCount) => {
-          return (currentCount || 0) + 1;
-      }).catch(e => console.error("Failed to increment writeCount:", e));
-  }
-
-  async function incrementTweetCount() {
-      await tweetsCountRef.transaction((currentCount) => {
-          return (currentCount || 0) + 1;
-      }).catch(e => console.error("Failed to increment tweetCount:", e));
-  }
-
-  async function decrementTweetCount() {
-      await tweetsCountRef.transaction((currentCount) => {
-          return Math.max(0, (currentCount || 0) - 1); 
-      }).catch(e => console.error("Failed to decrement tweetCount:", e));
-  }
 
  async function submitTweet() {
     // --- 連打防止: 処理中はボタンを無効化 ---
@@ -318,10 +259,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
         // 引用機能用: tweetNumber→key の対応をquoteIndexに保存（クエリ無しで直接参照できるようにする）
         db.ref('quoteIndex/' + tweetNumber).set(newTweetKey);
-
-        // 書き込みカウントを別途更新
-        await db.ref('usageStats/writeCount').set(currentWriteCount + 1);
-        currentWriteCount++;
 
         userRecentPosts[name].push({ textHash: textHash, timestamp: now }); 
         userLastPostTime[name] = now; // 最終投稿時刻を更新
@@ -488,8 +425,7 @@ if (predefinedColorSelect.value === 'rainbow') {
 
     try {
         const snapshot = await db.ref('tweets').orderByKey().limitToLast(100).once('value');
-        await incrementReadCount();
-
+        
 
         const data = snapshot.val();
         if (data) {
@@ -534,8 +470,10 @@ if (predefinedColorSelect.value === 'rainbow') {
             });
         }
         scheduleUpdateUserStats();
-    } catch (error) {
+        } catch (error) {
         console.error("初期データの読み込みに失敗しました:", error);
+    } finally {
+        hideLoading();
     }
   }
 
@@ -584,7 +522,6 @@ if (predefinedColorSelect.value === 'rainbow') {
       showLoading('読み込み中…');
       try {
           const snapshot = await db.ref('likedTweets').orderByKey().limitToLast(100).once('value');
-          await incrementReadCount();
           const data = snapshot.val() || {};
           Object.assign(allTweets, data);
           Object.keys(data).forEach((key, index) => {
@@ -610,7 +547,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       likedTweetsQueryRef.on('child_added', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           const data = snapshot.val();
           allTweets[key] = data;
@@ -633,7 +569,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       db.ref('likedTweets').on('child_changed', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           const data = snapshot.val();
           allTweets[key] = data;
@@ -655,7 +590,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       db.ref('likedTweets').on('child_removed', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           removeTweetFromDOMAndMaps(key);
           delete allTweets[key];
@@ -685,7 +619,6 @@ if (predefinedColorSelect.value === 'rainbow') {
         ? db.ref('tweets').orderByKey().startAfter(lastLoadedKey)
         : db.ref('tweets').orderByKey();
     tweetsQueryRef.on('child_added', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       const data = snapshot.val();
@@ -720,7 +653,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
     // child_changed リスナー
     db.ref('tweets').on('child_changed', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       const data = snapshot.val();
@@ -750,7 +682,6 @@ if (predefinedColorSelect.value === 'rainbow') {
     // --- ↓ ここから元のコードで setupRealtimeListeners の外に出ていた部分を中に移動 ↓ ---
     // child_removed リスナー
     db.ref('tweets').on('child_removed', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       removeTweetFromDOMAndMaps(key);
@@ -760,39 +691,39 @@ if (predefinedColorSelect.value === 'rainbow') {
     }, (error) => {
       console.error("child_removed リスナーでエラー:", error);
     });
-    console.log("DEBUG: child_removed リスナーを設定しました。");
 
     // presence 関連のロジック
-    const presenceRef = db.ref('presence');
-    const amOnline = db.ref('.info/connected');
+    // presence management
+if (!presenceTrackingInitialized) {
+    presenceTrackingInitialized = true;
 
-    let userId = localStorage.getItem('firebaseUserId');
-    if (!userId) {
-      userId = db.ref().push().key;
-      localStorage.setItem('firebaseUserId', userId);
-    }
-    const userPresenceRef = presenceRef.child(userId);
+    const presenceRef = db.ref('presence');
+    const amOnline = db.ref('.info/connected');
 
-    amOnline.on('value', (snapshot) => {
-      if (snapshot.val()) {
-        userPresenceRef.onDisconnect().remove();
-        userPresenceRef.set(true).catch(e => console.error("Failed to set presence:", e));
+    const userPresenceRef = presenceRef.child(currentUser);
+    const connectionRef = userPresenceRef.push();
+
+    amOnline.on('value', (snapshot) => {
+        if (snapshot.val() === true) {
+            connectionRef.onDisconnect().remove()
+                .then(() => connectionRef.set(true))
+                .catch((error) => {
+                    console.error("Failed to register presence:", error);
+                });
+        }
+    });
 
 
-      }
-    });
-    console.log("DEBUG: amOnline リスナーを設定しました。");
+    presenceRef.on('value', (snapshot) => {
+        const count = snapshot.numChildren();
+        concurrentUsersDiv.textContent = `同時接続数: ${count}`;
+    }, (error) => {
+        console.error("presence listener error:", error);
+    });
 
-    presenceRef.on('value', async (snapshot) => {
-      await incrementReadCount();
-      const count = snapshot.numChildren();
-      concurrentUsersDiv.textContent = `同接数: ${count}`;
-    }, (error) => {
-      console.error("presence リスナーでエラー:", error);
-    });
-    console.log("DEBUG: presenceRef リスナーを設定しました。");
-  }
-  // --- バージョンチェック機能の追加 ---
+}
+      // --- バージョンチェック機能の追加 ---
+}
   function setFormEnabled(enabled) {
       nicknameInput.disabled = !enabled;
       commentInput.disabled = !enabled;
@@ -813,7 +744,8 @@ if (predefinedColorSelect.value === 'rainbow') {
                 usageWarningDiv.textContent = 'バージョンチェック中...';
             }
 
-            const matched = (firebaseVersionKey === THIS_HTML_VERSION_KEY);
+
+const matched = (firebaseVersionKey === THIS_HTML_VERSION_KEY);
             isCurrentVersion = matched;
 
             if (matched) {
@@ -831,8 +763,6 @@ if (predefinedColorSelect.value === 'rainbow') {
             if (!versionCheckInitialized) {
                 versionCheckInitialized = true;
                 try {
-                    await incrementReadCount();
-                    await initializeUsageMonitoring();
                     await loadInitialTweetsAndMonitorChanges();
                     setupRealtimeListeners();
                 } catch (error) {
@@ -844,10 +774,27 @@ if (predefinedColorSelect.value === 'rainbow') {
             }
         }
 
-        // VERSION_CONFIG_REF.on が初回発火＆変更検知を兼ねる（.once との二重実行なし）
-        VERSION_CONFIG_REF.on('value', (snapshot) => {
-            const firebaseVersionKey = snapshot.val();
-            checkAppVersion(firebaseVersionKey);
-        });
-        // --- ここまで ---
+                // 認証完了までフォームを無効化
+        setFormEnabled(false);
+        usageWarningDiv.style.display = 'block';
+        usageWarningDiv.textContent = 'Firebase認証中...';
 
+        // 匿名認証が完了してからバージョン確認を開始
+        authReady.then(() => {
+
+    VERSION_CONFIG_REF.on('value', (snapshot) => {
+        const firebaseVersionKey = snapshot.val();
+
+
+        checkAppVersion(firebaseVersionKey);
+    }, (error) => {
+        console.error("Firebase version config read failed:", error);
+    });
+
+}).catch((error) => {
+            console.error("Firebase anonymous authentication failed:", error);
+            setFormEnabled(false);
+            usageWarningDiv.style.display = 'block';
+            usageWarningDiv.textContent =
+                'Firebase認証に失敗しました。ページを再読み込みしてください。';
+        });

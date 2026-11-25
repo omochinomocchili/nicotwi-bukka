@@ -112,7 +112,7 @@ GitHub・Firebaseとも、このアカウントを所有者・保管用として
 | `settings.js` | 投稿フォームのDOM要素、コメント形式/大きさ/色の切り替えUI、ログ表示ON/OFF、localStorageへの設定保存・復元。 |
 | `timeline.js` | 投稿カードの生成・更新・削除、引用カード生成、もっと見る/折りたたみ、投稿履歴のtxt書き出し機能。 |
 | `comments.js` | 流れる/中央固定コメントの表示、投稿再現（リプレイ）機能、読み上げ（Web Speech API）。 |
-| `firebase.js` | **Firebase関連は全部ここに集約**。初期化、投稿の取得・送信、👍の更新、読み取り/書き込み数の管理、タブ切り替え（新着/話題）、バージョンチェック。 |
+| `firebase.js` | **Firebase関連は全部ここに集約**。初期化、匿名認証、投稿の取得・送信、👍の更新、同時接続管理、タブ切り替え（新着/話題）、バージョンチェック。 |
 
 **読み込み順序（`index.html`の`<script>`タグの並び）**:
 ```
@@ -135,6 +135,14 @@ utils.js → layout.js → ranking.js → settings.js → timeline.js → commen
 - **アクセス方法**: [https://console.firebase.google.com/](https://console.firebase.google.com/) にアクセス → プロジェクト `nicotwibukka` を選択 → 左メニューの「Realtime Database」
 - ログインには、Googleアカウント **omochinomocchili@gmail.com**（このプロジェクトのFirebaseのオーナー）が必要です。自分個人のアカウントを追加する手順は[権限の引き継ぎ方法](#権限の引き継ぎ方法詳細)を参照してください。
 
+### 匿名認証
+
+ページ読み込み時に Firebase Authentication の匿名認証を実行します。利用者にログインやアカウント登録を求めず、Firebase が発行した匿名ユーザーの UID を取得してから、バージョン確認と Realtime Database の初期化を始めます。
+
+Firebase プロジェクトを新しく設定する場合は、Firebase コンソールの **Authentication → Sign-in method → Anonymous（匿名）** を有効にしてください。無効の場合は認証に失敗し、アプリは投稿フォームを無効にしてエラーを表示します。設定手順は[Firebase公式ドキュメント](https://firebase.google.com/docs/auth/web/anonymous-auth?hl=ja)を参照してください。
+
+匿名認証は利用者本人を確認するログイン機能ではありません。アカウント登録なしで Firebase 上の匿名 UID を発行し、Realtime Database の認証条件を満たすために使います。
+
 ### データ構造
 
 Realtime Databaseの中身は、だいたいこんな構造になっています。
@@ -148,8 +156,8 @@ Realtime Databaseの中身は、だいたいこんな構造になっています
 /config/
     totalTweetCount     … 累計投稿数（tweetNumberの元）
     current_version_key … 現在の最新バージョン番号（バージョンチェック機能用）
-/presence/{userId}     … 同時接続数カウント用
-/usageStats/           … 読み取り/書き込み回数の記録（無料枠監視用）
+/presence/{uid}/{connectionId} … 匿名UIDごとの接続レコード（切断時は自動削除）
+/usageStats/           … 旧利用状況監視機能で使用していたノード。現行アプリは参照しない
 ```
 
 ### ルール（セキュリティルール）
@@ -247,8 +255,10 @@ Realtime Database → ルール タブで編集します。現状のルールは
       ".read": true,
 
       "$user_id": {
-        ".write": true,
-        ".validate": "newData.isBoolean()"
+        "$connection_id": {
+          ".write": true,
+          ".validate": "newData.isBoolean()"
+        }
       }
     },
 
@@ -277,11 +287,12 @@ Realtime Database → ルール タブで編集します。現状のルールは
 }
 ```
 
+`usageStats` のルールは旧利用状況監視機能の名残です。現行アプリの `firebase.js` はこのノードを読み書きしません。ただし、ほかのクライアントや外部スクリプトが使用していないか確認するまでは、Firebase側のルールを削除しないでください。
 `"$other": { ".validate": false }` は「`tweets`の中に、リストにないフィールドを追加すると書き込みごと拒否する」設定です。**新しいフィールドを投稿データに追加する時は、ここに`.validate`ルールを追加しないと保存できません**。
 
 ### 無料枠について
 
-Firebaseの無料プラン（Sparkプラン）には読み取り/書き込み回数やデータ転送量に上限があります。アプリ内で読み取り/書き込み回数を`usageStats`に記録して簡易的に監視していますが、正確な使用量は Firebaseコンソール → 使用量と請求額 で確認してください。上限に近づくと投稿できなくなる仕組みが入っています（`firebase.js`の`checkTweetLimit`/`initializeUsageMonitoring`あたり）。
+Firebaseの無料プラン（Sparkプラン）には読み取り・書き込み・データ転送量などに上限があります。**現行アプリは`usageStats`に利用回数を記録せず、使用量が上限に近づいた時に投稿を自動停止する機能もありません。** 実際の使用量は Firebaseコンソール → 使用量と請求額 で確認してください。`usageStats`ノードやルールがFirebase上に残っていても、現行アプリは参照しません。削除する場合は、ほかのクライアントや外部スクリプトが利用していないことを確認してください。
 
 ## 投稿を削除する方法
 
