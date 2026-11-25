@@ -159,51 +159,112 @@ Realtime Database → ルール タブで編集します。現状のルールは
 ```json
 {
   "rules": {
-    ".read": "auth != null || auth == null",
     ".write": false,
+
     "config": {
       ".read": true,
-      "totalTweetCount": { ".write": true },
+
+      "totalTweetCount": {
+        ".write": "newData.isNumber() && newData.val() >= 0 && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
+      },
+
       "current_version_key": {
         ".read": true,
-        ".write": "auth != null"
-      }
-    },
-    "tweets": {
-      ".read": true,
-      ".indexOn": "tweetNumber",
-      "$tweet_id": {
-        ".write": true,
-        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 15" },
-        "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 14000" },
-        "color": { ".validate": "newData.isString() && (newData.val().matches(/^#[0-9a-fA-F]{6}$/) || newData.val() === 'rainbow' || newData.val() === '5000trillion' || newData.val() === 'dot')" },
-        "type": { ".validate": "newData.isString() && (newData.val() === 'normal' || newData.val() === 'center_fixed')" },
-        "size": { ".validate": "newData.isString() && (newData.val() === 'small' || newData.val() === 'medium' || newData.val() === 'large')" },
-        "timestamp": { ".validate": "newData.isNumber()" },
-        "tweetNumber": { ".validate": "newData.isNumber()" },
-        "reactions": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "reactedUsers": { ".validate": "newData.hasChildren() || !newData.exists()" },
-        "parent": { ".validate": "newData.isString() || !newData.exists()" },
-        "quote": { ".validate": "newData.isNumber() || !newData.exists()" },
-        "appVersion": { ".validate": "newData.isString() && newData.exists()" },
-        "$other": { ".validate": false }
-      }
-    },
-    "quoteIndex": {
-      ".read": true,
-      "$tweet_number": {
-        ".write": true,
+        ".write": "auth != null",
         ".validate": "newData.isString()"
       }
     },
-    "likedTweets": {
+
+    "tweets": {
       ".read": true,
-      ".write": true
+      ".indexOn": ["tweetNumber"],
+
+      "$tweet_id": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['name', 'text', 'color', 'type', 'size', 'timestamp', 'tweetNumber'])",
+
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 15"
+        },
+
+        "text": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 14000"
+        },
+
+        "color": {
+          ".validate": "newData.isString() && (newData.val().matches(/^#[0-9a-fA-F]{6}$/) || newData.val() === 'rainbow' || newData.val() === '5000trillion' || newData.val() === 'dot')"
+        },
+
+        "type": {
+          ".validate": "newData.isString() && (newData.val() === 'normal' || newData.val() === 'center_fixed')"
+        },
+
+        "size": {
+          ".validate": "newData.isString() && (newData.val() === 'small' || newData.val() === 'medium' || newData.val() === 'large')"
+        },
+
+        "timestamp": {
+          ".validate": "newData.isNumber()"
+        },
+
+        "tweetNumber": {
+          ".validate": "newData.isNumber()"
+        },
+
+        "reactions": {
+          ".write": "newData.isNumber() && newData.val() >= 0",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+
+        "reactedUsers": {
+          ".write": "newData.hasChildren() || !newData.exists()",
+          ".validate": "newData.hasChildren() || !newData.exists()"
+        },
+
+        "parent": {
+          ".validate": "newData.isString() || !newData.exists()"
+        },
+
+        "quote": {
+          ".validate": "newData.isNumber() || !newData.exists()"
+        },
+
+        "appVersion": {
+          ".validate": "newData.isString()"
+        },
+
+        "$other": {
+          ".validate": false
+        }
+      }
     },
+
     "presence": {
       ".read": true,
-      ".write": true
+
+      "$user_id": {
+        ".write": true,
+        ".validate": "newData.isBoolean()"
+      }
     },
+
+    "quoteIndex": {
+      ".read": true,
+
+      "$tweet_number": {
+        ".write": "!data.exists() && newData.isString()",
+        ".validate": "newData.isString()"
+      }
+    },
+
+    "likedTweets": {
+      ".read": true,
+
+      "$entry": {
+        ".write": true
+      }
+    },
+
     "usageStats": {
       ".read": true,
       ".write": true
