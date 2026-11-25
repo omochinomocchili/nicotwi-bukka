@@ -18,6 +18,7 @@
   };
 
   firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
   const db = firebase.database();
   const concurrentUsersDiv = document.getElementById('concurrentUsers');
   const submitButton = form.querySelector('button[type="submit"]'); 
@@ -34,13 +35,31 @@
   let userLastPostTime = {}; // 各ユーザーの最終投稿時刻を記録する
   
   
-let firebaseUserId = localStorage.getItem('firebaseUserId');
-if (!firebaseUserId) {
-    firebaseUserId = db.ref().push().key;
-    localStorage.setItem('firebaseUserId', firebaseUserId);
-}
-// currentUser は一意のIDとしてconstで定義する（変更しない）
-const currentUser = firebaseUserId;
+let currentUser = null;
+
+const authReady = new Promise((resolve, reject) => {
+    let unsubscribe = () => {};
+
+    unsubscribe = auth.onAuthStateChanged(
+        (user) => {
+            unsubscribe();
+
+            const authentication = user
+                ? Promise.resolve(user)
+                : auth.signInAnonymously().then((credential) => credential.user);
+
+            authentication.then((authenticatedUser) => {
+                currentUser = authenticatedUser.uid;
+                console.log("Firebase anonymous authentication ready.");
+                resolve(currentUser);
+            }).catch(reject);
+        },
+        (error) => {
+            unsubscribe();
+            reject(error);
+        }
+    );
+});
 
 const nicknameInput = document.getElementById('nickname');
 
@@ -51,7 +70,6 @@ if (savedUserName) {
 }
 
 // nicknameInputのイベントリスナー
-// currentUserを上書きしないように修正
 nicknameInput.addEventListener('input', (e) => {
     // ユーザー名をlocalStorageに保存するだけ
     localStorage.setItem('userName', e.target.value);
@@ -676,12 +694,7 @@ if (predefinedColorSelect.value === 'rainbow') {
     const presenceRef = db.ref('presence');
     const amOnline = db.ref('.info/connected');
 
-    let userId = localStorage.getItem('firebaseUserId');
-    if (!userId) {
-      userId = db.ref().push().key;
-      localStorage.setItem('firebaseUserId', userId);
-    }
-    const userPresenceRef = presenceRef.child(userId);
+    const userPresenceRef = presenceRef.child(currentUser);
 
     amOnline.on('value', (snapshot) => {
       if (snapshot.val()) {
@@ -751,9 +764,21 @@ if (predefinedColorSelect.value === 'rainbow') {
             }
         }
 
-        // VERSION_CONFIG_REF.on が初回発火＆変更検知を兼ねる（.once との二重実行なし）
-        VERSION_CONFIG_REF.on('value', (snapshot) => {
-            const firebaseVersionKey = snapshot.val();
-            checkAppVersion(firebaseVersionKey);
+                // 認証完了までフォームを無効化
+        setFormEnabled(false);
+        usageWarningDiv.style.display = 'block';
+        usageWarningDiv.textContent = 'Firebase認証中...';
+
+        // 匿名認証が完了してからバージョン確認を開始
+        authReady.then(() => {
+            VERSION_CONFIG_REF.on('value', (snapshot) => {
+                const firebaseVersionKey = snapshot.val();
+                checkAppVersion(firebaseVersionKey);
+            });
+        }).catch((error) => {
+            console.error("Firebase anonymous authentication failed:", error);
+            setFormEnabled(false);
+            usageWarningDiv.style.display = 'block';
+            usageWarningDiv.textContent =
+                'Firebase認証に失敗しました。ページを再読み込みしてください。';
         });
-        // --- ここまで ---
