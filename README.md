@@ -157,8 +157,9 @@ Realtime Databaseの中身は、だいたいこんな構造になっています
 Realtime Database → ルール タブで編集します。現状のルールは以下の通りです（万一消えてしまった時の復元用に貼っておきます。**実際に反映されているものと差異が出ている可能性があるので、変更前に現物を必ず確認してください**）。
 
 ```json
-{
+    {
   "rules": {
+    ".read": true,
     ".write": false,
 
     "config": {
@@ -180,8 +181,7 @@ Realtime Database → ルール タブで編集します。現状のルールは
       ".indexOn": ["tweetNumber"],
 
       "$tweet_id": {
-        ".write": "!data.exists()",
-        ".validate": "newData.hasChildren(['name', 'text', 'color', 'type', 'size', 'timestamp', 'tweetNumber'])",
+        ".write": "!data.exists() && newData.hasChildren(['name', 'text', 'color', 'type', 'size', 'timestamp', 'tweetNumber'])",
 
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 15"
@@ -218,7 +218,11 @@ Realtime Database → ルール タブで編集します。現状のルールは
 
         "reactedUsers": {
           ".write": "newData.hasChildren() || !newData.exists()",
-          ".validate": "newData.hasChildren() || !newData.exists()"
+          ".validate": "newData.hasChildren() || !newData.exists()",
+
+          "$user_id": {
+            ".validate": "newData.val() === true"
+          }
         },
 
         "parent": {
