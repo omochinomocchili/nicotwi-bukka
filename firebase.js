@@ -22,9 +22,6 @@
   const concurrentUsersDiv = document.getElementById('concurrentUsers');
   const submitButton = form.querySelector('button[type="submit"]'); 
   const usageWarningDiv = document.getElementById('usageWarning');
-  const usageStatsRef = db.ref('usageStats');
-  const writeCountRef = usageStatsRef.child('writeCount');
-  const tweetsCountRef = db.ref('tweetsCount');
   const totalTweetCountRef = db.ref('config/totalTweetCount'); // 累計コメント番号（削除されても増え続ける）
   // --- バージョンチェック関連の追加 ---
   const VERSION_CONFIG_REF = db.ref('config/current_version_key'); // Firebase上のバージョンキーのパス
@@ -36,8 +33,6 @@
   let userRecentPosts = {}; 
   let userLastPostTime = {}; // 各ユーザーの最終投稿時刻を記録する
   
-  let currentWriteCount = 0; 
-  let currentTweetCount = 0; 
   
 let firebaseUserId = localStorage.getItem('firebaseUserId');
 if (!firebaseUserId) {
@@ -61,20 +56,6 @@ nicknameInput.addEventListener('input', (e) => {
     // ユーザー名をlocalStorageに保存するだけ
     localStorage.setItem('userName', e.target.value);
 });
-  async function initializeUsageMonitoring() {
-    writeCountRef.on('value', (snapshot) => {
-        currentWriteCount = snapshot.val() || 0;
-    });
-
-    tweetsCountRef.on('value', (snapshot) => {
-        currentTweetCount = snapshot.val() || 0;
-        checkTweetLimit();
-    });
-}
-
-  function checkTweetLimit() {
-    console.log(`Current Usage: Writes: ${currentWriteCount}, Tweets: ${currentTweetCount}`);
-}
 
      // --- インターネット接続監視ロジック ---
 function updateConnectionStatus() {
@@ -102,24 +83,6 @@ updateConnectionStatus();
 // （settings.js内のinitializeLogDisplayModeは、内部でadjustOverallScale()を呼ぶため
 //   timeline.js/comments.js の読み込み完了後である必要があり、最後に読み込まれるここで呼び出す）
 initializeLogDisplayMode();
-
-  async function incrementWriteCount() {
-      await writeCountRef.transaction((currentCount) => {
-          return (currentCount || 0) + 1;
-      }).catch(e => console.error("Failed to increment writeCount:", e));
-  }
-
-  async function incrementTweetCount() {
-      await tweetsCountRef.transaction((currentCount) => {
-          return (currentCount || 0) + 1;
-      }).catch(e => console.error("Failed to increment tweetCount:", e));
-  }
-
-  async function decrementTweetCount() {
-      await tweetsCountRef.transaction((currentCount) => {
-          return Math.max(0, (currentCount || 0) - 1); 
-      }).catch(e => console.error("Failed to decrement tweetCount:", e));
-  }
 
  async function submitTweet() {
     // --- 連打防止: 処理中はボタンを無効化 ---
@@ -277,10 +240,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
         // 引用機能用: tweetNumber→key の対応をquoteIndexに保存（クエリ無しで直接参照できるようにする）
         db.ref('quoteIndex/' + tweetNumber).set(newTweetKey);
-
-        // 書き込みカウントを別途更新
-        await db.ref('usageStats/writeCount').set(currentWriteCount + 1);
-        currentWriteCount++;
 
         userRecentPosts[name].push({ textHash: textHash, timestamp: now }); 
         userLastPostTime[name] = now; // 最終投稿時刻を更新
@@ -781,7 +740,6 @@ if (predefinedColorSelect.value === 'rainbow') {
             if (!versionCheckInitialized) {
                 versionCheckInitialized = true;
                 try {
-                    await initializeUsageMonitoring();
                     await loadInitialTweetsAndMonitorChanges();
                     setupRealtimeListeners();
                 } catch (error) {
