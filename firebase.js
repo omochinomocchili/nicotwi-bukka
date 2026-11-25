@@ -36,6 +36,7 @@
   
   
 let currentUser = null;
+let presenceTrackingInitialized = false;
 
 const authReady = new Promise((resolve, reject) => {
     let unsubscribe = () => {};
@@ -469,8 +470,10 @@ if (predefinedColorSelect.value === 'rainbow') {
             });
         }
         scheduleUpdateUserStats();
-    } catch (error) {
+        } catch (error) {
         console.error("初期データの読み込みに失敗しました:", error);
+    } finally {
+        hideLoading();
     }
   }
 
@@ -688,33 +691,39 @@ if (predefinedColorSelect.value === 'rainbow') {
     }, (error) => {
       console.error("child_removed リスナーでエラー:", error);
     });
-    console.log("DEBUG: child_removed リスナーを設定しました。");
 
     // presence 関連のロジック
-    const presenceRef = db.ref('presence');
-    const amOnline = db.ref('.info/connected');
+    // presence management
+if (!presenceTrackingInitialized) {
+    presenceTrackingInitialized = true;
 
-    const userPresenceRef = presenceRef.child(currentUser);
+    const presenceRef = db.ref('presence');
+    const amOnline = db.ref('.info/connected');
 
-    amOnline.on('value', (snapshot) => {
-      if (snapshot.val()) {
-        userPresenceRef.onDisconnect().remove();
-        userPresenceRef.set(true).catch(e => console.error("Failed to set presence:", e));
+    const userPresenceRef = presenceRef.child(currentUser);
+    const connectionRef = userPresenceRef.push();
+
+    amOnline.on('value', (snapshot) => {
+        if (snapshot.val() === true) {
+            connectionRef.onDisconnect().remove()
+                .then(() => connectionRef.set(true))
+                .catch((error) => {
+                    console.error("Failed to register presence:", error);
+                });
+        }
+    });
 
 
-      }
-    });
-    console.log("DEBUG: amOnline リスナーを設定しました。");
+    presenceRef.on('value', (snapshot) => {
+        const count = snapshot.numChildren();
+        concurrentUsersDiv.textContent = `同時接続数: ${count}`;
+    }, (error) => {
+        console.error("presence listener error:", error);
+    });
 
-    presenceRef.on('value', async (snapshot) => {
-      const count = snapshot.numChildren();
-      concurrentUsersDiv.textContent = `同接数: ${count}`;
-    }, (error) => {
-      console.error("presence リスナーでエラー:", error);
-    });
-    console.log("DEBUG: presenceRef リスナーを設定しました。");
-  }
-  // --- バージョンチェック機能の追加 ---
+}
+      // --- バージョンチェック機能の追加 ---
+}
   function setFormEnabled(enabled) {
       nicknameInput.disabled = !enabled;
       commentInput.disabled = !enabled;
@@ -735,7 +744,8 @@ if (predefinedColorSelect.value === 'rainbow') {
                 usageWarningDiv.textContent = 'バージョンチェック中...';
             }
 
-            const matched = (firebaseVersionKey === THIS_HTML_VERSION_KEY);
+
+const matched = (firebaseVersionKey === THIS_HTML_VERSION_KEY);
             isCurrentVersion = matched;
 
             if (matched) {
@@ -771,11 +781,17 @@ if (predefinedColorSelect.value === 'rainbow') {
 
         // 匿名認証が完了してからバージョン確認を開始
         authReady.then(() => {
-            VERSION_CONFIG_REF.on('value', (snapshot) => {
-                const firebaseVersionKey = snapshot.val();
-                checkAppVersion(firebaseVersionKey);
-            });
-        }).catch((error) => {
+
+    VERSION_CONFIG_REF.on('value', (snapshot) => {
+        const firebaseVersionKey = snapshot.val();
+
+
+        checkAppVersion(firebaseVersionKey);
+    }, (error) => {
+        console.error("Firebase version config read failed:", error);
+    });
+
+}).catch((error) => {
             console.error("Firebase anonymous authentication failed:", error);
             setFormEnabled(false);
             usageWarningDiv.style.display = 'block';
