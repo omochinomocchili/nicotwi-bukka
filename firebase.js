@@ -25,7 +25,6 @@
   const usageStatsRef = db.ref('usageStats');
   const lastAccessTimestampRef = usageStatsRef.child('lastAccessTimestamp');
   const writeCountRef = usageStatsRef.child('writeCount');
-  const readCountRef = usageStatsRef.child('readCount');
   const tweetsCountRef = db.ref('tweetsCount');
   const totalTweetCountRef = db.ref('config/totalTweetCount'); // 累計コメント番号（削除されても増え続ける）
   // --- バージョンチェック関連の追加 ---
@@ -38,7 +37,6 @@
   let userRecentPosts = {}; 
   let userLastPostTime = {}; // 各ユーザーの最終投稿時刻を記録する
   
-  let currentReadCount = 0; 
   let currentWriteCount = 0; 
   let currentTweetCount = 0; 
   
@@ -71,15 +69,10 @@ nicknameInput.addEventListener('input', (e) => {
       if (isNewDay(lastAccessTimestamp)) {
           console.log("日付が変わったため、使用量カウントをリセットします。");
           await writeCountRef.set(0);
-          await readCountRef.set(0);
           await lastAccessTimestampRef.set(Date.now());
       } else {
           console.log("日付は変わっていません。既存のカウントを読み込みます。");
       }
-
-      readCountRef.on('value', (snapshot) => {
-          currentReadCount = snapshot.val() || 0;
-      });
 
       writeCountRef.on('value', (snapshot) => {
           currentWriteCount = snapshot.val() || 0;
@@ -97,8 +90,8 @@ nicknameInput.addEventListener('input', (e) => {
 
 
   function checkTweetLimit() {
-      console.log(`Current Usage: Reads: ${currentReadCount}, Writes: ${currentWriteCount}, Tweets: ${currentTweetCount}`);
-  }
+    console.log(`Current Usage: Writes: ${currentWriteCount}, Tweets: ${currentTweetCount}`);
+}
 
      // --- インターネット接続監視ロジック ---
 function updateConnectionStatus() {
@@ -126,23 +119,6 @@ updateConnectionStatus();
 // （settings.js内のinitializeLogDisplayModeは、内部でadjustOverallScale()を呼ぶため
 //   timeline.js/comments.js の読み込み完了後である必要があり、最後に読み込まれるここで呼び出す）
 initializeLogDisplayMode();
-
-  // readCountは1件ごとにFirebaseへ書き込むと重くなるため、ローカルで貯めて500msごとにまとめて反映する
-  let pendingReadCount = 0;
-  let readCountFlushTimer = null;
-  function incrementReadCount() {
-      pendingReadCount++;
-      if (readCountFlushTimer) return; // 既に予約済みなら何もしない（このタイミングでまとめて加算される）
-      readCountFlushTimer = setTimeout(() => {
-          readCountFlushTimer = null;
-          const toAdd = pendingReadCount;
-          pendingReadCount = 0;
-          if (toAdd <= 0) return;
-          readCountRef.transaction((currentCount) => {
-              return (currentCount || 0) + toAdd;
-          }).catch(e => console.error("Failed to increment readCount:", e));
-      }, 500);
-  }
 
   async function incrementWriteCount() {
       await writeCountRef.transaction((currentCount) => {
@@ -488,8 +464,7 @@ if (predefinedColorSelect.value === 'rainbow') {
 
     try {
         const snapshot = await db.ref('tweets').orderByKey().limitToLast(100).once('value');
-        await incrementReadCount();
-
+        
 
         const data = snapshot.val();
         if (data) {
@@ -584,7 +559,6 @@ if (predefinedColorSelect.value === 'rainbow') {
       showLoading('読み込み中…');
       try {
           const snapshot = await db.ref('likedTweets').orderByKey().limitToLast(100).once('value');
-          await incrementReadCount();
           const data = snapshot.val() || {};
           Object.assign(allTweets, data);
           Object.keys(data).forEach((key, index) => {
@@ -633,7 +607,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       db.ref('likedTweets').on('child_changed', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           const data = snapshot.val();
           allTweets[key] = data;
@@ -655,7 +628,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       db.ref('likedTweets').on('child_removed', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           removeTweetFromDOMAndMaps(key);
           delete allTweets[key];
@@ -685,7 +657,6 @@ if (predefinedColorSelect.value === 'rainbow') {
         ? db.ref('tweets').orderByKey().startAfter(lastLoadedKey)
         : db.ref('tweets').orderByKey();
     tweetsQueryRef.on('child_added', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       const data = snapshot.val();
@@ -720,7 +691,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
     // child_changed リスナー
     db.ref('tweets').on('child_changed', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       const data = snapshot.val();
@@ -750,7 +720,6 @@ if (predefinedColorSelect.value === 'rainbow') {
     // --- ↓ ここから元のコードで setupRealtimeListeners の外に出ていた部分を中に移動 ↓ ---
     // child_removed リスナー
     db.ref('tweets').on('child_removed', async (snapshot) => {
-      await incrementReadCount();
 
       const key = snapshot.key;
       removeTweetFromDOMAndMaps(key);
@@ -784,7 +753,6 @@ if (predefinedColorSelect.value === 'rainbow') {
     console.log("DEBUG: amOnline リスナーを設定しました。");
 
     presenceRef.on('value', async (snapshot) => {
-      await incrementReadCount();
       const count = snapshot.numChildren();
       concurrentUsersDiv.textContent = `同接数: ${count}`;
     }, (error) => {
@@ -831,7 +799,6 @@ if (predefinedColorSelect.value === 'rainbow') {
             if (!versionCheckInitialized) {
                 versionCheckInitialized = true;
                 try {
-                    await incrementReadCount();
                     await initializeUsageMonitoring();
                     await loadInitialTweetsAndMonitorChanges();
                     setupRealtimeListeners();
