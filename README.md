@@ -167,7 +167,6 @@ Realtime Database → ルール タブで編集します。現状のルールは
 ```json
     {
   "rules": {
-    ".read": true,
     ".write": false,
 
     "config": {
@@ -252,15 +251,17 @@ Realtime Database → ルール タブで編集します。現状のルールは
     },
 
     "presence": {
-      ".read": true,
+  ".read": true,
 
-      "$user_id": {
-        "$connection_id": {
-          ".write": true,
-          ".validate": "newData.isBoolean()"
-        }
-      }
-    },
+  "$user_id": {
+    ".write": "auth != null && auth.uid === $user_id",
+
+    "$connection_id": {
+      ".write": "auth != null && auth.uid === $user_id",
+      ".validate": "newData.isBoolean()"
+    }
+  }
+},
 
     "quoteIndex": {
       ".read": true,
@@ -280,8 +281,8 @@ Realtime Database → ルール タブで編集します。現状のルールは
     },
 
     "usageStats": {
-      ".read": true,
-      ".write": true
+      ".read": false,
+      ".write": false
     }
   }
 }
