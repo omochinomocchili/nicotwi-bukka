@@ -23,7 +23,6 @@
   const submitButton = form.querySelector('button[type="submit"]'); 
   const usageWarningDiv = document.getElementById('usageWarning');
   const usageStatsRef = db.ref('usageStats');
-  const lastAccessTimestampRef = usageStatsRef.child('lastAccessTimestamp');
   const writeCountRef = usageStatsRef.child('writeCount');
   const tweetsCountRef = db.ref('tweetsCount');
   const totalTweetCountRef = db.ref('config/totalTweetCount'); // 累計コメント番号（削除されても増え続ける）
@@ -63,31 +62,15 @@ nicknameInput.addEventListener('input', (e) => {
     localStorage.setItem('userName', e.target.value);
 });
   async function initializeUsageMonitoring() {
-      const lastAccessSnapshot = await lastAccessTimestampRef.once('value');
-      const lastAccessTimestamp = lastAccessSnapshot.val();
+    writeCountRef.on('value', (snapshot) => {
+        currentWriteCount = snapshot.val() || 0;
+    });
 
-      if (isNewDay(lastAccessTimestamp)) {
-          console.log("日付が変わったため、使用量カウントをリセットします。");
-          await writeCountRef.set(0);
-          await lastAccessTimestampRef.set(Date.now());
-      } else {
-          console.log("日付は変わっていません。既存のカウントを読み込みます。");
-      }
-
-      writeCountRef.on('value', (snapshot) => {
-          currentWriteCount = snapshot.val() || 0;
-      });
-
-      tweetsCountRef.on('value', (snapshot) => {
-          currentTweetCount = snapshot.val() || 0;
-          checkTweetLimit();
-      });
-
-      setInterval(() => {
-          lastAccessTimestampRef.set(Date.now()).catch(e => console.error("Failed to update lastAccessTimestamp:", e));
-      }, 60 * 1000); 
-  }
-
+    tweetsCountRef.on('value', (snapshot) => {
+        currentTweetCount = snapshot.val() || 0;
+        checkTweetLimit();
+    });
+}
 
   function checkTweetLimit() {
     console.log(`Current Usage: Writes: ${currentWriteCount}, Tweets: ${currentTweetCount}`);
@@ -816,4 +799,3 @@ if (predefinedColorSelect.value === 'rainbow') {
             checkAppVersion(firebaseVersionKey);
         });
         // --- ここまで ---
-

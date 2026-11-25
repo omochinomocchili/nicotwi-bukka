@@ -45,19 +45,6 @@
   const FORBIDDEN_HTML_TAGS_REGEX = /<(input|select|textarea|button|form|iframe|script|style|link)[\s>]/i;
 
 
-  function isNewDay(timestamp) {
-      if (!timestamp) return true;
-      const lastDate = new Date(timestamp);
-      const now = new Date();
-
-      const offset = 9 * 60 * 60 * 1000;
-      const lastDayJST = Math.floor((lastDate.getTime() + offset) / (24 * 60 * 60 * 1000));
-      const currentDayJST = Math.floor((now.getTime() + offset) / (24 * 60 * 60 * 1000));
-      
-      return currentDayJST > lastDayJST;
-  }
-
-
   function containsSpam(text) {
       const lowerText = text.toLowerCase();
 
@@ -256,4 +243,3 @@ function toStaticRainbowText(text) {
         ">${p2}</span>
     </div>`;
 }
-
