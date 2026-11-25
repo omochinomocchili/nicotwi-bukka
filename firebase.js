@@ -584,7 +584,6 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       likedTweetsQueryRef.on('child_added', async (snapshot) => {
           if (currentFeedTab !== 'trend') return;
-          await incrementReadCount();
           const key = snapshot.key;
           const data = snapshot.val();
           allTweets[key] = data;
