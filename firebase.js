@@ -362,47 +362,87 @@ if (predefinedColorSelect.value === 'rainbow') {
 
   // 👍更新: いいねの追加/取り消しと、話題タブ用インデックス(likedTweets)への同期
   async function toggleReaction(key, data) {
-      const currentUserName = nicknameInput.value;
-      const isAnonymousUser = !currentUserName || currentUserName.trim() === '';
-      if (isAnonymousUser) {
-          alert('「いいね」をするには、フォームに名前を入力してください。');
-          return;
-      }
+    const currentUserName = nicknameInput.value;
 
-      const reactionsRef = db.ref('tweets/' + key + '/reactions');
-      const reactedUsersRef = db.ref('tweets/' + key + '/reactedUsers');
-      const reactedUsers = (await reactedUsersRef.once('value')).val() || {};
+    if (!currentUserName || currentUserName.trim() === '') {
+        alert('「いいね」をするには、フォームに名前を入力してください。');
+        return;
+    }
 
-      let transactionResult;
-      if (reactedUsers[currentUser]) {
-          delete reactedUsers[currentUser];
-          await reactedUsersRef.set(reactedUsers);
-          transactionResult = await reactionsRef.transaction((currentCount) => (currentCount || 0) - 1);
-      } else {
-          reactedUsers[currentUser] = true;
-          await reactedUsersRef.set(reactedUsers);
-          transactionResult = await reactionsRef.transaction((currentCount) => (currentCount || 0) + 1);
-      }
+    try {
+        const tweetRef = db.ref('tweets/' + key);
 
-      // 話題タブ用インデックス(likedTweets)を最新のいいね数と一緒に同期する
-      const newReactionCount = (transactionResult && transactionResult.snapshot && transactionResult.snapshot.val()) || 0;
-      if (newReactionCount > 0) {
-          db.ref('likedTweets/' + key).set({
-              name: data.name || null,
-              text: data.text || null,
-              color: data.color || null,
-              type: data.type || null,
-              size: data.size || null,
-              reactions: newReactionCount,
-              reactedUsers: reactedUsers || null,
-              timestamp: data.timestamp || null,
-              tweetNumber: data.tweetNumber || null,
-              quote: data.quote || null,
-              appVersion: data.appVersion || null
-          });
-      } else {
-          db.ref('likedTweets/' + key).remove();
-      }
+        // 元投稿を直接取得する
+        const tweetSnapshot = await tweetRef.once('value');
+        if (!tweetSnapshot.exists()) {
+            alert('元の投稿が見つかりません。');
+            return;
+        }
+
+        // 自分のいいね状態だけを確認する
+        const myReactionRef = tweetRef
+            .child('reactedUsers')
+            .child(currentUser);
+
+        const myReactionSnapshot = await myReactionRef.once('value');
+        const isRemoving = myReactionSnapshot.val() === true;
+
+        // 自分のいいね状態を更新する
+        if (isRemoving) {
+            await myReactionRef.remove();
+        } else {
+            await myReactionRef.set(true);
+        }
+
+        // いいね数をtransactionで更新する
+        const transactionResult = await tweetRef
+            .child('reactions')
+            .transaction((currentCount) => {
+                const count = Number(currentCount) || 0;
+
+                return isRemoving
+                    ? Math.max(0, count - 1)
+                    : count + 1;
+            });
+
+        if (!transactionResult.committed) {
+            throw new Error('いいね数の更新が確定しませんでした。');
+        }
+
+        // 更新後の元投稿を再取得する
+        const updatedSnapshot = await tweetRef.once('value');
+        const updatedTweet = updatedSnapshot.val();
+
+        if (!updatedTweet) {
+            throw new Error('更新後の投稿データを取得できませんでした。');
+        }
+
+        const reactionCount = Number(updatedTweet.reactions) || 0;
+        const likedTweetRef = db.ref('likedTweets/' + key);
+
+        // 話題タブ用インデックスを同期する
+        if (reactionCount > 0) {
+            await likedTweetRef.set({
+                name: updatedTweet.name ?? null,
+                text: updatedTweet.text ?? null,
+                color: updatedTweet.color ?? null,
+                type: updatedTweet.type ?? null,
+                size: updatedTweet.size ?? null,
+                reactions: reactionCount,
+                reactedUsers: updatedTweet.reactedUsers ?? null,
+                timestamp: updatedTweet.timestamp ?? null,
+                tweetNumber: updatedTweet.tweetNumber ?? null,
+                quote: updatedTweet.quote ?? null,
+                appVersion: updatedTweet.appVersion ?? null
+            });
+        } else {
+            await likedTweetRef.remove();
+        }
+
+    } catch (error) {
+        console.error('いいねの更新に失敗しました:', error);
+        alert('いいねの更新に失敗しました。詳細はコンソールを確認してください。');
+    }
   }
 
   // ▼ 引用機能（quote）のヘルパー関数群 ▼
