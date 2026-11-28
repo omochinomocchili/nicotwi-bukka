@@ -638,13 +638,28 @@ function getFloatingCommentYPosition(durationMs) { // durationMs が正確か確
       const rawText = data.text || '';
       const found = await fetchQuotedTweetInfo(data.quote);
       if (!found) return rawText;
-      const snippet = buildQuotePlainSnippet(found.data);
-      const markerRegex = new RegExp('#' + data.quote + '\\s*');
-      const insertion = `#${data.quote}　${snippet}　`;
-      if (markerRegex.test(rawText)) {
-          return rawText.replace(markerRegex, insertion);
+      const isPollQuote = found.type === 'poll' || !!found.data.choices;
+      let snippet;
+      if (isPollQuote) {
+          const title = DOMPurify.sanitize(found.data.title || '投票');
+          const choices = Array.isArray(found.data.choices) ? found.data.choices : Object.values(found.data.choices || {});
+          const voteValues = Object.values(found.votes || {});
+          const details = choices.map((choice, index) => {
+              const count = voteValues.reduce((sum, value) => {
+                  const indexes = Array.isArray(value) ? value : (typeof value === 'number' ? [value] :
+                      (value && typeof value === 'object' ? Object.keys(value).filter(key => Number.isInteger(Number(key)) && value[key] !== null && value[key] !== false).map(key => Number(value[key])) : []));
+                  return sum + (indexes.includes(index) ? 1 : 0);
+              }, 0);
+              const percent = voteValues.length ? Math.round(count / voteValues.length * 100) : 0;
+              return (index + 1) + '. ' + DOMPurify.sanitize(String(choice)) + ' ' + percent + '%';
+          });
+          snippet = title + '【' + details.join('／') + '】';
+      } else {
+          snippet = buildQuotePlainSnippet(found.data);
       }
-      // 万一本文中に#番号が見当たらない場合は先頭に付ける
+      const markerRegex = new RegExp('#' + data.quote + '\\s*');
+      const insertion = isPollQuote ? `${snippet}　` : `#${data.quote}　${snippet}　`;
+      if (markerRegex.test(rawText)) return rawText.replace(markerRegex, insertion);
       return insertion + rawText;
   }
 

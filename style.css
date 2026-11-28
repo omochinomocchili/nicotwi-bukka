@@ -51,7 +51,9 @@ body {
        そのまま追従させる。 */
     overflow: visible;
     background: #0a1b2a; /* スクロール時などに下に隙間が見えても白飛びしないようにする保険 */
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-family: 'k8x12S', sans-serif;
+    font-weight: 700;
+    font-synthesis: none; /* Akshar以外の日本語フォントを擬似太字にしない */
     font-size: 24px;
     transform-origin: 0 0;
     transform: scale(1);
@@ -158,7 +160,7 @@ body.comment-only #concurrentUsers { display: none; }
     white-space: nowrap;
     font-size: 72px;
     font-weight: normal;
-    font-family: 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
+    font-family: 'Akshar', 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
     pointer-events: none;
     text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
     left: 0;
@@ -171,7 +173,7 @@ body.comment-only #concurrentUsers { display: none; }
     text-overflow: clip;
     font-size: 72px;
     font-weight: normal;
-    font-family: 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
+    font-family: 'Akshar', 'GenZenGothicKaiC', 'Noto Sans CJK JP', 'Noto Sans', sans-serif;
     left: 50%;
     transform: translateX(-50%);
     pointer-events: none;
@@ -571,7 +573,7 @@ input, select {
     min-width: 80px;
 }
 input::placeholder {
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-family: 'k8x12S', sans-serif;
 }
 
 input#comment  { min-width: 300px; }
@@ -638,6 +640,26 @@ select#commentSize {
     gap: 10px;
     flex-shrink: 0;
     margin-left: auto;
+}
+#pollCreatorButton {
+    box-sizing: border-box;
+    width: auto;
+    padding: 10px 12px;
+    min-height: 0;
+    font-size: 24px;
+    line-height: normal;
+    font-family: 'k8x12S', sans-serif;
+    background: #8FA7E8;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+#pollCreatorButton:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
 }
 #clearInputBtn {
     padding: 10px 20px;
@@ -712,7 +734,7 @@ button:disabled {
     margin-bottom: 3px;
 }
 .quote-preview-header .quote-preview-name {
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-family: 'Akshar', 'GenZenGothicKaiC', sans-serif;
 }
 .quote-preview-body {
     color: #cfd8e3;
@@ -767,7 +789,7 @@ button:disabled {
     font-size: 0.6em;
     line-height: 1.3;
     overflow-wrap: anywhere;
-    font-family: 'GenZenGothicKaiC', sans-serif !important; /* 引用元(投稿)のdot-fontを継承しないようリセット */
+    font-family: 'k8x12S', sans-serif !important;
 }
 .quote-card .part-upper,
 .quote-card .part-lower {
@@ -782,7 +804,7 @@ button:disabled {
     font-weight: normal;
 }
 .quote-card-name {
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-family: 'Akshar', 'GenZenGothicKaiC', sans-serif;
     font-weight: normal;
 }
 .quote-card-body {
@@ -811,6 +833,50 @@ button:disabled {
 .quote-card-loading {
     color: #888;
     font-style: italic;
+}
+.quote-poll-title {
+    color: #fff;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+.quote-poll-choices {
+    display: grid;
+    gap: 5px;
+}
+.quote-poll-choice {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 10px;
+    align-items: center;
+    font-size: .95em;
+}
+.quote-poll-choice-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.quote-poll-choice-percent {
+    color: #c5ddff;
+    white-space: nowrap;
+    font-family: 'k8x12S', sans-serif;
+}
+.quote-poll-choice-bar {
+    grid-column: 1 / -1;
+    display: block;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: rgba(255,255,255,.12);
+}
+.quote-poll-choice-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #8db9eb;
+}
+.quote-poll-total {
+    margin-top: 5px;
+    color: #aab7c4;
+    font-size: .85em;
 }
 .quote-card-clickable {
     cursor: pointer;
@@ -865,7 +931,7 @@ button:disabled {
 .tweet-username {
     font-size: 22px;
     font-weight: normal;
-    font-family: 'GenZenGothicKaiC', sans-serif;
+    font-family: 'Akshar', 'GenZenGothicKaiC', sans-serif;
     color: #fff;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1322,3 +1388,1070 @@ body.rainbow-anim-off .rainbow-char:nth-of-type(6n+6) { color: #BF00FF !importan
     min-height: 1.2em;
 }
 
+
+
+/* =============================================================
+   12. Material 3-inspired component polish
+   色・既存の配色トークンは変更せず、形状/階層/操作状態のみを調整
+   ============================================================= */
+
+:root {
+    --m3-shape-small: 12px;
+    --m3-shape-medium: 16px;
+    --m3-shape-large: 20px;
+    --m3-shape-extra-large: 28px;
+    --m3-outline: rgba(255, 255, 255, 0.12);
+    --m3-outline-strong: rgba(255, 255, 255, 0.22);
+    --m3-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.22), 0 1px 2px rgba(0, 0, 0, 0.16);
+    --m3-elevation-2: 0 3px 8px rgba(0, 0, 0, 0.24), 0 1px 3px rgba(0, 0, 0, 0.18);
+    --m3-elevation-3: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+/* メインのカード／サーフェス */
+#topUsers,
+#replayPanel,
+#allUsers {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-large);
+    box-shadow: var(--m3-elevation-1);
+}
+
+#topUsers {
+    padding: 12px 16px;
+}
+
+#replayPanel,
+#allUsers {
+    padding: 18px;
+}
+
+.tweet {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-large);
+    box-shadow: var(--m3-elevation-1);
+    padding: 12px 16px;
+    transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.tweet:focus-within {
+    border-color: var(--m3-outline-strong);
+    box-shadow: var(--m3-elevation-2);
+}
+
+.quote-card,
+#quotePreviewContainer {
+    border-radius: var(--m3-shape-medium);
+}
+
+.quote-card {
+    border-top: 1px solid var(--m3-outline);
+    border-right: 1px solid var(--m3-outline);
+    border-bottom: 1px solid var(--m3-outline);
+}
+
+#quotePreviewContainer {
+    border-left: 1px solid var(--m3-outline);
+    border-right: 1px solid var(--m3-outline);
+}
+
+/* 入力欄は既存の背景色・文字色を維持して輪郭とフォーカスを統一 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+    border-radius: var(--m3-shape-small);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.22);
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+input[type="color"] {
+    accent-color: #4a90d9;
+}
+
+/* Filled / tonal buttons: keep every button's authored color */
+button:not(.toggle-text-button):not(.log-toggle-link),
+.export-option-btn,
+#exportModalCancel {
+    border-radius: 999px;
+    box-shadow: var(--m3-elevation-1);
+    transition: transform 140ms ease, box-shadow 160ms ease, outline-color 160ms ease;
+}
+
+button:not(.toggle-text-button):not(.log-toggle-link):hover,
+.export-option-btn:hover,
+#exportModalCancel:hover {
+    box-shadow: var(--m3-elevation-2);
+}
+
+button:not(.toggle-text-button):not(.log-toggle-link):active,
+.export-option-btn:active,
+#exportModalCancel:active {
+    transform: scale(0.98);
+    box-shadow: var(--m3-elevation-1);
+}
+
+button:focus-visible,
+.export-option-btn:focus-visible,
+#exportModalCancel:focus-visible,
+a:focus-visible {
+    outline: 2px solid #4a90d9;
+    outline-offset: 3px;
+}
+
+/* タブは同じ高さ・同じピル形状で、選択中の既存色をそのまま活かす */
+.feed-tab {
+    min-height: 44px;
+    border-radius: 999px;
+    box-shadow: none;
+}
+
+.feed-tab.active-tab {
+    box-shadow: var(--m3-elevation-1);
+}
+
+/* 小さなアクションは過度に大きくせず、タップ領域と反応だけ整える */
+.tweet-meta-actions .reaction-btn,
+.tweet-meta-actions .requote-btn {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 999px;
+    transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.tweet-meta-actions .reaction-btn:active,
+.tweet-meta-actions .requote-btn:active {
+    transform: scale(0.92);
+}
+
+/* コメント表示エリア上の補助コントロール */
+#toggleLogDisplayContainer,
+#toggleSpeechContainer,
+#toggleRainbowContainer {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-medium);
+    box-shadow: var(--m3-elevation-1);
+}
+
+#concurrentUsers {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-medium);
+    box-shadow: var(--m3-elevation-1);
+}
+
+#usageWarning,
+#connectionStatus {
+    border-radius: var(--m3-shape-medium) !important;
+}
+
+/* 投稿ログの行もカードとしてまとめる */
+.log-comment {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-medium);
+    padding: 10px 12px;
+}
+
+/* モーダルは大きめの角丸と一段高い elevation */
+#exportModalBox {
+    border: 1px solid var(--m3-outline);
+    border-radius: var(--m3-shape-extra-large);
+    box-shadow: var(--m3-elevation-3);
+    padding: 28px;
+}
+
+.export-option-btn {
+    min-height: 48px;
+    padding: 12px 20px;
+}
+
+#exportModalCancel {
+    min-height: 44px;
+}
+
+/* 管理パネルの書き出しボタンはHTML内の角丸指定よりM3形状を優先 */
+#adminPanel > button {
+    border-radius: 999px !important;
+    box-shadow: var(--m3-elevation-1);
+    transition: transform 140ms ease, box-shadow 160ms ease;
+}
+
+#adminPanel > button:hover {
+    box-shadow: var(--m3-elevation-2);
+}
+
+#adminPanel > button:active {
+    transform: scale(0.98);
+}
+
+/* 動きを控えたい環境ではアニメーションを抑える */
+@media (prefers-reduced-motion: reduce) {
+    button,
+    input,
+    select,
+    textarea,
+    .tweet {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+
+
+/* =============================================================
+   13. Compact spacing + clearer outlines
+   余白を控えめに整理し、カード／領域の境界を見分けやすくする
+   ============================================================= */
+
+:root {
+    --m3-outline: rgba(255, 255, 255, 0.28);
+    --m3-outline-strong: rgba(255, 255, 255, 0.46);
+}
+
+/* 画面の外周と主要領域の余白を少しだけ圧縮 */
+#twiArea {
+    padding: 22px;
+}
+
+#headerSection {
+    padding: 22px 22px 0 22px;
+}
+
+#formArea {
+    padding: 22px;
+}
+
+@media (max-aspect-ratio: 2/3) {
+    #formArea {
+        padding-bottom: 0;
+    }
+}
+
+/* フォーム・タブ・カード間の間隔 */
+form,
+.form-row {
+    gap: 8px;
+}
+
+#feedTabs {
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.tweet {
+    padding: 10px 14px;
+    margin-bottom: 6px;
+}
+
+#topUsers {
+    padding: 10px 14px;
+}
+
+#replayPanel,
+#allUsers {
+    padding: 16px;
+}
+
+#replayPanel {
+    margin-top: 10px;
+}
+
+#allUsers {
+    margin-top: 24px;
+}
+
+#allUsers li {
+    margin-bottom: 6px;
+    margin-right: 12px;
+}
+
+#quotePreviewContainer {
+    padding: 7px 10px;
+    margin-bottom: 8px;
+}
+
+.log-comment {
+    padding: 8px 10px;
+    margin-bottom: 4px;
+}
+
+#concurrentUsers {
+    padding: 8px 12px;
+}
+
+#toggleLogDisplayContainer,
+#toggleSpeechContainer,
+#toggleRainbowContainer {
+    gap: 8px;
+    padding: 8px 12px;
+}
+
+/* 境界線を少し明るくし、暗い背景でもカードを判別しやすく */
+.tweet,
+#topUsers,
+#replayPanel,
+#allUsers,
+.log-comment,
+.quote-card {
+    border-color: var(--m3-outline);
+}
+
+.quote-card {
+    border: 1px solid var(--m3-outline);
+}
+
+.feed-tab {
+    border: 1px solid var(--m3-outline);
+}
+
+/* メイン領域どうしの区切り */
+@media (min-aspect-ratio: 2/3) {
+    #twiArea {
+        box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.24);
+    }
+}
+
+@media (max-aspect-ratio: 2/3) {
+    #nicoArea,
+    #headerSection,
+    #formArea {
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.24);
+    }
+}
+
+
+
+/* =============================================================
+   14. Tighter spacing and header/form divider adjustment
+   ============================================================= */
+
+/* 余白をもう一段だけ圧縮（色・文字サイズ・配置ロジックは維持） */
+#twiArea {
+    padding: 18px;
+}
+
+#headerSection {
+    padding: 18px 18px 0 18px;
+}
+
+#formArea {
+    padding: 18px;
+}
+
+@media (max-aspect-ratio: 2/3) {
+    #formArea {
+        padding-bottom: 0;
+    }
+}
+
+form,
+.form-row {
+    gap: 6px;
+}
+
+.form-field {
+    gap: 5px;
+}
+
+#feedTabs {
+    gap: 5px;
+    margin-bottom: 6px;
+}
+
+.tweet {
+    padding: 8px 12px;
+    margin-bottom: 5px;
+}
+
+#topUsers,
+#replayPanel,
+#allUsers {
+    padding: 14px;
+}
+
+#replayPanel {
+    margin-top: 8px;
+}
+
+#allUsers {
+    margin-top: 18px;
+}
+
+#allUsers li {
+    margin-bottom: 4px;
+    margin-right: 10px;
+}
+
+#quotePreviewContainer {
+    padding: 6px 8px;
+    margin-bottom: 6px;
+}
+
+.log-comment {
+    padding: 7px 9px;
+    margin-bottom: 3px;
+}
+
+#concurrentUsers {
+    padding: 7px 10px;
+}
+
+#toggleLogDisplayContainer,
+#toggleSpeechContainer,
+#toggleRainbowContainer {
+    gap: 7px;
+    padding: 7px 10px;
+}
+
+/* 縦長レイアウト：タイトル／順位エリアと投稿フォームの間の線だけを消す */
+@media (max-aspect-ratio: 2/3) {
+    #headerSection {
+        box-shadow: none !important;
+    }
+}
+
+
+/* =============================================================
+   15. 投稿カード内の縦方向の余白をさらに圧縮
+   ============================================================= */
+
+/* 投稿者名 → 投稿本文 → アクションの行間を詰める */
+.tweet {
+    row-gap: 0;
+}
+
+.tweet-meta-namegroup {
+    padding-bottom: 0;
+}
+
+.tweet .tweet-text-content {
+    margin-block: 0;
+    line-height: 1.2;
+}
+
+
+/* =============================================================
+   16. Material 3らしい面・状態・コンポーネントの整理
+   既存のベースカラーは維持し、トーンの重なりと操作感で質感を出す
+   ============================================================= */
+
+:root {
+    --m3-state-hover: rgba(255, 255, 255, 0.07);
+    --m3-state-pressed: rgba(255, 255, 255, 0.12);
+    --m3-surface-highlight: rgba(255, 255, 255, 0.035);
+    --m3-motion-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* カードは輪郭だけで区切らず、上面のわずかなハイライトと低い影で面を作る */
+#topUsers,
+#replayPanel,
+#allUsers,
+.tweet {
+    background-image: linear-gradient(
+        180deg,
+        var(--m3-surface-highlight) 0%,
+        rgba(255, 255, 255, 0) 58%
+    );
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.22),
+        0 1px 1px rgba(255, 255, 255, 0.025) inset;
+    transition:
+        box-shadow 220ms var(--m3-motion-standard),
+        transform 220ms var(--m3-motion-standard),
+        background-color 180ms var(--m3-motion-standard);
+}
+
+#topUsers,
+#replayPanel,
+#allUsers {
+    border-radius: 24px;
+}
+
+.tweet {
+    border-radius: 20px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .tweet:hover,
+    #topUsers:hover,
+    #replayPanel:hover,
+    #allUsers:hover {
+        box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.22),
+            0 1px 2px rgba(0, 0, 0, 0.16),
+            0 1px 1px rgba(255, 255, 255, 0.035) inset;
+    }
+
+    .tweet:hover {
+        transform: translateY(-1px);
+    }
+}
+
+/* 引用はカードの中に入る「一段低い面」として表現 */
+.quote-card,
+#quotePreviewContainer {
+    background-image: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.025),
+        rgba(255, 255, 255, 0) 55%
+    );
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16) inset;
+}
+
+/* 新着／話題は独立したボタンではなく、ひとまとまりのセグメントコントロールに */
+#feedTabs {
+    align-items: stretch;
+    padding: 4px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.feed-tab {
+    min-height: 48px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    box-shadow: none;
+    transition:
+        background-color 180ms var(--m3-motion-standard),
+        color 180ms var(--m3-motion-standard),
+        box-shadow 180ms var(--m3-motion-standard),
+        transform 140ms var(--m3-motion-standard);
+}
+
+.feed-tab.active-tab {
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.2),
+        0 1px 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .feed-tab:not(.active-tab):hover {
+        background: var(--m3-state-hover);
+        color: #fff;
+    }
+}
+
+.feed-tab:active {
+    transform: scale(0.985);
+    background-image: linear-gradient(var(--m3-state-pressed), var(--m3-state-pressed));
+}
+
+/* 通常ボタンは少し丸みのある形に統一。全面ピル型一辺倒にしない */
+button:not(.toggle-text-button):not(.log-toggle-link),
+.export-option-btn,
+#exportModalCancel {
+    min-height: 44px;
+    border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition:
+        box-shadow 180ms var(--m3-motion-standard),
+        transform 140ms var(--m3-motion-standard),
+        background-image 140ms var(--m3-motion-standard),
+        filter 140ms var(--m3-motion-standard);
+}
+
+button:not(.toggle-text-button):not(.log-toggle-link):active,
+.export-option-btn:active,
+#exportModalCancel:active {
+    transform: scale(0.975);
+    filter: brightness(0.98);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    button:not(.toggle-text-button):not(.log-toggle-link):hover,
+    .export-option-btn:hover,
+    #exportModalCancel:hover {
+        filter: brightness(1.06);
+    }
+}
+
+/* 投稿アクションは小さなトーナル・ピルとして、カード本体と階層を分ける */
+.tweet-meta-actions {
+    gap: 6px;
+}
+
+.tweet-meta-actions .reaction-btn,
+.tweet-meta-actions .requote-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.07);
+    box-shadow: none;
+    transition:
+        background-color 160ms var(--m3-motion-standard),
+        transform 140ms var(--m3-motion-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .tweet-meta-actions .reaction-btn:hover,
+    .tweet-meta-actions .requote-btn:hover {
+        background-color: rgba(255, 255, 255, 0.13);
+    }
+}
+
+.tweet-meta-actions .reaction-btn:active,
+.tweet-meta-actions .requote-btn:active {
+    background-color: rgba(255, 255, 255, 0.18);
+    transform: scale(0.94);
+}
+
+.tweet-meta-actions .reaction-btn:disabled {
+    opacity: 0.48;
+    box-shadow: none;
+}
+
+/* 入力欄はアウトライン型のまま、高さ・内側余白・フォーカスを整える */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    transition:
+        border-color 180ms var(--m3-motion-standard),
+        box-shadow 180ms var(--m3-motion-standard);
+}
+
+input::placeholder {
+    opacity: 0.68;
+}
+
+.form-field select {
+    border-radius: 12px;
+}
+
+.button-group {
+    gap: 8px;
+}
+
+/* 画面上に浮くトグル類は、背景をぼかしたfloating surfaceに */
+#toggleLogDisplayContainer,
+#toggleSpeechContainer,
+#toggleRainbowContainer,
+#concurrentUsers {
+    border-radius: 18px;
+    box-shadow:
+        0 3px 10px rgba(0, 0, 0, 0.22),
+        0 1px 1px rgba(255, 255, 255, 0.05) inset;
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+/* セクション見出しに一貫した字間と余白を与える */
+#topUsers h3,
+#allUsers h3,
+#replayPanel h3 {
+    letter-spacing: 0.025em;
+    line-height: 1.25;
+}
+
+/* リスト項目は角丸のまとまりとして見せ、カード内の情報を整理 */
+#allUsers li {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+/* キーボード操作にも同じ状態レイヤーを用意 */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #topUsers,
+    #replayPanel,
+    #allUsers,
+    .tweet,
+    .feed-tab,
+    .tweet-meta-actions .reaction-btn,
+    .tweet-meta-actions .requote-btn {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+
+/* 入力欄の高さをコンパクトに調整 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+select,
+textarea {
+    min-height: 38px;
+    padding: 6px 12px;
+}
+
+
+/* =============================================================
+   17. 表示設定サイドバー
+   ============================================================= */
+#utilitySidebar {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    font-family: 'k8x12S', sans-serif;
+}
+#utilitySidebarToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--m3-outline, rgba(255,255,255,.28));
+    border-radius: 16px;
+    background: rgba(26, 58, 90, .94);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,.28), inset 0 1px 1px rgba(255,255,255,.08);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+#utilitySidebarToggle:active {
+    transform: scale(.94);
+}
+.utility-sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px;
+    border: 1px solid var(--m3-outline, rgba(255,255,255,.28));
+    border-radius: 20px;
+    background: rgba(10, 27, 42, .92);
+    box-shadow: 0 8px 24px rgba(0,0,0,.32), inset 0 1px 1px rgba(255,255,255,.05);
+    backdrop-filter: blur(18px) saturate(1.15);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+.utility-sidebar-content[hidden] {
+    display: none !important;
+}
+#utilitySidebar .toggleLogDisplayContainer,
+#utilitySidebar .toggleSpeechContainer,
+#utilitySidebar .toggleRainbowContainer,
+#utilitySidebar #toggleLogDisplayContainer,
+#utilitySidebar #toggleSpeechContainer,
+#utilitySidebar #toggleRainbowContainer {
+    position: static;
+    left: auto;
+    top: auto;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 11px;
+    gap: 9px;
+    opacity: 1;
+    border-radius: 13px;
+    background: rgba(255,255,255,.055);
+    box-shadow: none;
+    white-space: nowrap;
+}
+#utilitySidebar #toggleLogDisplayContainer label,
+#utilitySidebar #toggleSpeechContainer label,
+#utilitySidebar #toggleRainbowContainer label {
+    font-size: 17px;
+}
+#utilitySidebar input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+
+/* =============================================================
+   18. 投稿カードの上下余白と投稿再現パネルのコンパクトM3化
+   ============================================================= */
+
+/* 投稿者名の上・アクション列の下に残る余白を圧縮 */
+#tweetStream .tweet {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    row-gap: 0;
+}
+#tweetStream .tweet-meta-namegroup {
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 1.15;
+}
+#tweetStream .tweet-meta-actions {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    min-height: 0;
+    line-height: 1;
+}
+#tweetStream .tweet-meta-actions .reaction-btn,
+#tweetStream .tweet-meta-actions .requote-btn {
+    min-height: 30px;
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* 投稿再現パネル：コンパクトなトーナルサーフェス */
+#replayPanel {
+    padding: 12px;
+    border: 1px solid var(--m3-outline, rgba(255,255,255,.28));
+    border-radius: 22px;
+    background:
+        linear-gradient(145deg, rgba(255,255,255,.055), transparent 58%),
+        #1a3a5a;
+    box-shadow:
+        0 2px 5px rgba(0,0,0,.22),
+        inset 0 1px 1px rgba(255,255,255,.06);
+    font-size: 17px;
+    transition: box-shadow 180ms var(--m3-motion-standard, ease);
+}
+#replayPanel h3 {
+    margin: 0 0 8px;
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: normal;
+}
+#replayPanel .replay-row {
+    gap: 6px;
+    margin-bottom: 5px;
+}
+#replayPanel .replay-row[style] {
+    margin-top: 5px !important;
+}
+#replayPanel input[type="number"] {
+    box-sizing: border-box;
+    width: 58px;
+    min-height: 30px;
+    height: 30px;
+    padding: 3px 8px;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 10px;
+    background: rgba(4,18,31,.48);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.18);
+    font-size: 14px;
+}
+#replayPanel input[type="range"] {
+    width: 76px;
+    min-height: 24px;
+    height: 24px;
+    accent-color: #9fc7f2;
+}
+#replayPanel input[type="file"] {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 32px;
+    height: 32px;
+    padding: 3px 6px !important;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    background: rgba(4,18,31,.42);
+    color: #e6edf5;
+    font-size: 12px !important;
+}
+#replayPanel button {
+    box-sizing: border-box;
+    min-height: 32px;
+    height: 32px;
+    padding: 4px 11px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 1;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2), inset 0 1px 1px rgba(255,255,255,.1);
+    transition:
+        filter 150ms var(--m3-motion-standard, ease),
+        transform 150ms var(--m3-motion-standard, ease),
+        box-shadow 150ms var(--m3-motion-standard, ease);
+}
+#replayPanel button:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow: 0 3px 7px rgba(0,0,0,.22), inset 0 1px 1px rgba(255,255,255,.12);
+}
+#replayPanel button:active:not(:disabled) {
+    transform: scale(.96);
+}
+#replayPanel button:disabled {
+    opacity: .48;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+#replayStartBtn {
+    background: #b66b13;
+    border-color: rgba(255,214,160,.2);
+}
+#replayTxtStartBtn {
+    background: #286b45;
+    border-color: rgba(170,235,190,.2);
+}
+#replayStopBtn {
+    min-width: 34px;
+    padding-inline: 8px;
+    background: #536273;
+}
+#replayIntervalLabel {
+    min-width: 38px;
+    font-size: 13px;
+    color: #d5e2f1;
+    font-variant-numeric: tabular-nums;
+}
+#replayStatus {
+    min-height: 16px;
+    margin-top: 5px;
+    padding: 5px 8px;
+    border-radius: 10px;
+    background: rgba(0,0,0,.16);
+    color: #c4d8ee;
+    font-size: 12px;
+    line-height: 1.35;
+}
+#replayPanel input:focus-visible,
+#replayPanel button:focus-visible {
+    outline: 2px solid #a9cafa;
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #replayPanel,
+    #replayPanel button {
+        transition: none !important;
+    }
+}
+
+
+/* 引用カード内のアクションを右端にまとめる */
+.quote-card-header { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+.quote-card-author { display:inline-flex; align-items:center; gap:4px; min-width:0; overflow:hidden; }
+.quote-card-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.quote-card-actions { display:inline-flex; align-items:center; justify-content:flex-end; gap:3px; flex:0 0 auto; margin-left:auto; }
+.quote-card-actions button { display:inline-flex; align-items:center; justify-content:center; min-width:28px; min-height:26px; padding:2px 5px; border:0; border-radius:999px; background:transparent; color:#aab7c4; font:inherit; font-size:.88em; line-height:1; cursor:pointer; transition:background-color 120ms ease,color 120ms ease; }
+.quote-card-actions button:hover:not(:disabled) { background:rgba(138,180,232,.14); color:#d9eaff !important; }
+.quote-card-actions button:active:not(:disabled) { background:rgba(138,180,232,.24); }
+.quote-card-actions button:disabled { opacity:.45; cursor:default; }
+
+
+/* 引用カード内アクションの縦寸法をさらにコンパクトに */
+.quote-card-actions button {
+    min-height: 18px;
+    height: 18px;
+    min-width: 24px;
+    padding: 0 3px;
+    line-height: 1;
+    font-size: 0.82em;
+}
+
+
+/* 引用投稿内の「もっと見る／折りたたむ」を k8x12S に統一 */
+.quote-card .quote-card-toggle {
+    font-family: 'k8x12S', sans-serif !important;
+}
+
+
+/* 投稿本文と「もっと見る／折りたたむ」の間隔を詰める */
+.tweet .toggle-text-button {
+    margin-top: 0;
+}
+
+
+/* 投稿再現スライダーをMaterial 3風に */
+#replayPanel input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: 112px;
+    min-width: 76px;
+    min-height: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    accent-color: #a9c9f5;
+    cursor: pointer;
+    touch-action: pan-y;
+}
+#replayPanel input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: #536477;
+}
+#replayPanel input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: #536477;
+}
+#replayPanel input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -8px;
+    border: 6px solid #a9c9f5;
+    border-radius: 50%;
+    background: #263b52;
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    transition: box-shadow 140ms ease, transform 140ms ease;
+}
+#replayPanel input[type="range"]::-moz-range-thumb {
+    width: 8px;
+    height: 8px;
+    border: 6px solid #a9c9f5;
+    border-radius: 50%;
+    background: #263b52;
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    transition: box-shadow 140ms ease, transform 140ms ease;
+}
+#replayPanel input[type="range"]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 0 8px rgba(169,201,245,.12), 0 1px 3px rgba(0,0,0,.35);
+}
+#replayPanel input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 10px rgba(169,201,245,.18);
+}
+#replayPanel input[type="range"]:focus-visible {
+    outline: 2px solid #a9c9f5;
+    outline-offset: 3px;
+    border-radius: 999px;
+}
+
+
+/* 引用投稿内のリアクションボタンは全体ボタンの最小高さ指定より優先して極小化 */
+.quote-card .quote-card-actions button {
+    box-sizing: border-box;
+    min-height: 14px !important;
+    height: 14px !important;
+    padding: 0 2px !important;
+    line-height: 14px !important;
+    font-size: 0.72em !important;
+}
+
+
+/* GenZenGothicKaiCを維持する領域：
+   投稿本文・投稿者名・引用元本文・投票題名/選択肢・入力中の投稿本文/名前 */
+input#comment,
+input#nickname,
+#pollCreatorBox #pollTitle,
+#pollCreatorBox .poll-choice-row input,
+.tweet .tweet-text-content:not(.dot-font),
+.quote-preview-body,
+.quote-card-body,
+.quote-poll-title,
+.quote-poll-choice-name {
+    font-family: 'Akshar', 'GenZenGothicKaiC', sans-serif;
+}

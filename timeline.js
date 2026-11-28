@@ -309,7 +309,38 @@ function appendTweetToLog(key, text, color, timestamp, user) {
     });
 }
 // ↑↑↑ appendTweetToLog 関数 ↑↑↑
-function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
+function isPollStreamData(data) {
+    if (!data || typeof data !== 'object') return false;
+    const number = Number(data.tweetNumber);
+    if (Number.isFinite(number) && number > 0 &&
+        window.pollTweetNumbers instanceof Set && window.pollTweetNumbers.has(number)) return true;
+    const hasChoices = Array.isArray(data.choices) ||
+        (!!data.choices && typeof data.choices === 'object');
+    const hasPollMetadata = data.endsAt != null ||
+        data.durationSeconds != null || data.creatorUid != null || data.createdAt != null;
+    return data.type === 'poll' || data.poll === true || data.pollId != null ||
+        (hasChoices && hasPollMetadata);
+  }
+
+  function removePollCardsFromTweetStream() {
+    if (!tweetStream || !(window.pollTweetNumbers instanceof Set)) return;
+    Array.from(tweetStream.children).forEach(card => {
+      const key = card.getAttribute('data-key');
+      const record = allTweets && allTweets[key];
+      const number = Number(record && record.tweetNumber);
+      if (Number.isFinite(number) && window.pollTweetNumbers.has(number)) {
+        card.remove();
+        tweetDomCache.delete(key);
+        delete allTweets[key];
+      }
+    });
+  }
+
+  function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
+    // Firebaseに欠損レコードがあっても、他の投稿の描画を止めない。
+    if (!data || typeof data !== 'object') return;
+    // 投票データは独立した「投票」タブに限定し、新着／話題の投稿一覧には描画しない。
+    if (isPollStreamData(data)) return;
     // 引用(#数字)がある場合、表示用テキストからその「#数字」部分を取り除く
     // （引用カードが内容を表示するので、本文側は残りのコメント部分だけにする）
     const quoteStrippedText = data.quote ? stripQuoteMarker(data.text, data.quote) : data.text;
@@ -323,10 +354,15 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
     const isQuoteOnly = !!data.quote && sanitizedText.trim() === '';
 
     // フィルタリングロジック（__SPLIT__除去後のテキストでチェック）
-    if (containsSpam(sanitizedText) || containsForbiddenHtmlTags(sanitizedText) ||
+    // 投稿時のスパム・連投判定は新規到着分だけに適用する。
+    // 過去投稿を一覧へ復元する際に現在の制限値で再判定すると、
+    // 同一ユーザーの過去投稿などが消え、一覧が1件だけになることがある。
+    if (isNewTweet && (
+        containsSpam(sanitizedText) || containsForbiddenHtmlTags(sanitizedText) ||
         sanitizedText.length > NORMAL_COMMENT_MAX_LENGTH ||
         (data.type !== 'center_fixed' && isPostIntervalViolated(data.name, data.timestamp)) ||
-        isSameContentRateLimited(data.name, sanitizedText, data.timestamp)) {
+        isSameContentRateLimited(data.name, sanitizedText, data.timestamp)
+    )) {
         console.log(`禁止コメントをスキップ： ${sanitizedText}`);
         removeTweetFromDOMAndMaps(key);
         delete allTweets[key];
@@ -359,11 +395,11 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
     const formattedTime = formatTimestamp(data.timestamp);
     const reacted = data.reactedUsers && data.reactedUsers[currentUser];
     const reactionCount = data.reactions || 0;
-    const originalName = data.name
-    // 投稿者名が匿名かどうかをチェック
-    const isAnonymousPost = !originalName || originalName.trim() === '';
+    const originalName = String(data.name || '');
+    // 投稿者名が欠損した古いデータも匿名投稿として安全に表示する。
+    const isAnonymousPost = originalName.trim() === '';
     const maxNameLength = 15;
-    const displayUserName = originalName.length > maxNameLength ? originalName.substring(0, maxNameLength) + '...' : originalName;
+    const displayUserName = originalName.length > maxNameLength ? originalName.substring(0, maxNameLength) + '...' : (originalName || '名無し');
     const currentTweetNumber = data.tweetNumber || tweetIndex || 0;
     const isLongText = sanitizedText.length > MAX_LOG_COMMENT_LENGTH;
     const isOverFlow = isLongText; // 暫定的な判断。日本語対応は後述のJSで実施。
@@ -427,11 +463,9 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
         updateTweetDisplay(div, data);
     }
 
-    if (!toggleLogDisplayCheckbox.checked) {
-        div.style.display = 'none';
-    } else {
-        div.style.display = ''; // CSS側の display:grid を使わせる（'block'で上書きしない）
-    }
+    // ログ表示設定は nicoArea の投稿ログだけに適用する。
+    // タイムラインの投稿カードは、設定にかかわらず常に表示する。
+    div.style.display = ''; // CSS側の display:grid を使わせる（'block'で上書きしない）
 
     const reactionBtn = div.querySelector(".tweet-meta-actions .reaction-btn");
     if (reactionBtn) {
@@ -489,7 +523,10 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
       // 本文中の「#quoteNumber」を引用元の内容に置換する（クリックでのジャンプ機能はそのまま）
       const mentionEls = div.querySelectorAll(`.quote-mention[data-quote-number="${quoteNumber}"]`);
       if (found) {
-          const plainSnippet = buildQuotePlainSnippet(found.data);
+          const isPollQuote = found.type === 'poll' || !!found.data.choices;
+          const plainSnippet = isPollQuote
+              ? DOMPurify.sanitize(found.data.title || '投票')
+              : buildQuotePlainSnippet(found.data);
           mentionEls.forEach(el => {
               el.textContent = `「${plainSnippet}」`;
           });
@@ -500,9 +537,47 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
           cardEl.innerHTML = `<div class="quote-card-missing">#${quoteNumber} の投稿が見つかりません</div>`;
           return;
       }
-      const quotedName = (found.data.name && found.data.name.trim()) ? found.data.name : '名無し';
-      const bodyHtml = buildQuoteCardContentHtml(found.data);
-      cardEl.innerHTML = `<div class="quote-card-header"><span class="quote-card-number">#${quoteNumber}</span> <span class="quote-card-name">@${quotedName}</span></div><div class="quote-card-body">${bodyHtml}</div>`;
+      const isPollQuote = found.type === 'poll' || !!found.data.choices;
+      const quotedName = isPollQuote
+          ? ((found.data.creatorName && found.data.creatorName.trim()) ? found.data.creatorName : '名無し')
+          : ((found.data.name && found.data.name.trim()) ? found.data.name : '名無し');
+      const pollChoices = isPollQuote
+          ? (Array.isArray(found.data.choices) ? found.data.choices : Object.values(found.data.choices || {}))
+          : [];
+      const pollVoteValues = isPollQuote ? Object.values(found.votes || {}) : [];
+      const pollCounts = pollChoices.map((choice, index) => pollVoteValues.reduce((sum, value) => {
+          const indexes = Array.isArray(value) ? value : (typeof value === 'number' ? [value] :
+              (value && typeof value === 'object' ? Object.keys(value).filter(key => Number.isInteger(Number(key)) && value[key] !== null && value[key] !== false).map(key => Number(value[key])) : []));
+          return sum + (indexes.includes(index) ? 1 : 0);
+      }, 0));
+      const bodyHtml = isPollQuote
+          ? '<div class="quote-poll-title">' + DOMPurify.sanitize(found.data.title || '（タイトルなし）') + '</div>' +
+            '<div class="quote-poll-choices">' + pollChoices.map((choice, index) => {
+                const percent = pollVoteValues.length ? Math.round(pollCounts[index] / pollVoteValues.length * 100) : 0;
+                return '<div class="quote-poll-choice"><span class="quote-poll-choice-name">' + (index + 1) + '. ' + DOMPurify.sanitize(String(choice)) + '</span><span class="quote-poll-choice-percent">' + percent + '%</span><span class="quote-poll-choice-bar"><span style="width:' + percent + '%"></span></span></div>';
+            }).join('') + '</div>' +
+            '<div class="quote-poll-total">投票数 ' + pollVoteValues.length + '票</div>'
+          : buildQuoteCardContentHtml(found.data);
+      const quoteReacted = !isPollQuote && found.data.reactedUsers && found.data.reactedUsers[currentUser];
+      const quoteReactionCount = isPollQuote ? 0 : (found.data.reactions || 0);
+      const quoteIsAnonymous = isPollQuote || !found.data.name || found.data.name.trim() === '';
+      cardEl.innerHTML = `
+          <div class="quote-card-header">
+              <span class="quote-card-author"><span class="quote-card-number">#${quoteNumber}</span> <span class="quote-card-name">@${quotedName}</span></span>
+              <span class="quote-card-actions">
+                  ${isPollQuote ? '' : '<button type="button" class="quote-card-reaction-btn" style="color:' + (quoteReacted ? '#87CEEB' : '#aab7c4') + ';" ' + (quoteIsAnonymous ? 'disabled' : '') + ' title="引用元にいいね">👍 ' + quoteReactionCount + '</button>'}
+                  <button type="button" class="quote-card-requote-btn" title="引用元を再引用">🔄</button>
+              </span>
+          </div>
+          <div class="quote-card-body">${bodyHtml}</div>`;
+      const quoteReactionBtn = cardEl.querySelector('.quote-card-reaction-btn');
+      if (quoteReactionBtn) {
+          quoteReactionBtn.onclick = (e) => { e.stopPropagation(); toggleReaction(found.key, found.data); };
+      }
+      const quoteRequoteBtn = cardEl.querySelector('.quote-card-requote-btn');
+      if (quoteRequoteBtn) {
+          quoteRequoteBtn.onclick = (e) => { e.stopPropagation(); insertQuoteIntoForm(quoteNumber); };
+      }
       cardEl.classList.add('quote-card-clickable');
       cardEl.addEventListener('click', () => jumpToTweetByNumber(quoteNumber));
 
@@ -535,7 +610,19 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
       }
       const targetDiv = targetKey ? (tweetDomCache.get(targetKey) || document.querySelector(`.tweet[data-key="${targetKey}"]`)) : null;
       if (!targetDiv) {
-          alert(`元投稿（#${quoteNumber}）は直近100件の表示範囲外のため移動できません。`);
+          const pollCard = [...document.querySelectorAll('.nico-poll')].find(card =>
+              card.querySelector('.nico-poll-number')?.textContent === '#' + quoteNumber);
+          const pollTabCard = [...document.querySelectorAll('.poll-tab-card')].find(card =>
+              card.querySelector('.poll-tab-number')?.textContent === '#' + quoteNumber);
+          const pollTarget = pollTabCard || pollCard;
+          if (pollTarget) {
+              if (pollTabCard && typeof switchFeedTab === 'function') switchFeedTab('polls');
+              pollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              pollTarget.classList.add('quote-jump-highlight');
+              setTimeout(() => pollTarget.classList.remove('quote-jump-highlight'), 1500);
+              return;
+          }
+          alert(`元投稿（#${quoteNumber}）は表示範囲外のため移動できません。`);
           return;
       }
       targetDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -600,8 +687,14 @@ function appendTweetToStream(key, data, tweetIndex, isNewTweet = false) {
           return;
       }
 
-      const quotedName = (found.data.name && found.data.name.trim()) ? found.data.name : '名無し';
-      const bodyHtml = buildQuoteCardContentHtml(found.data);
+      const isPollQuote = found.type === 'poll' || !!found.data.choices;
+      const quotedName = isPollQuote
+          ? ((found.data.creatorName && found.data.creatorName.trim()) ? found.data.creatorName : '名無し')
+          : ((found.data.name && found.data.name.trim()) ? found.data.name : '名無し');
+      const bodyHtml = isPollQuote
+          ? '<div class="quote-poll-title">' + DOMPurify.sanitize(found.data.title || '（タイトルなし）') + '</div>' +
+            '<div class="quote-poll-choices">' + (Array.isArray(found.data.choices) ? found.data.choices : Object.values(found.data.choices || {})).map((choice, index) => '<div class="quote-poll-choice">' + (index + 1) + '. ' + DOMPurify.sanitize(String(choice)) + '</div>').join('') + '</div>'
+          : buildQuoteCardContentHtml(found.data);
       previewEl.innerHTML = `<div class="quote-preview-header">#${quoteNumber} <span class="quote-preview-name">@${quotedName}</span></div><div class="quote-preview-body">${bodyHtml}</div>`;
       previewEl.style.display = 'block';
   }

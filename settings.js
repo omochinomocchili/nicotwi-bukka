@@ -195,3 +195,20 @@
         colorPickerContainer.style.display = (predefinedColorSelect.value === 'custom') ? 'flex' : 'none';
     }
 }
+
+
+// 表示設定サイドバーの開閉（各機能の既存チェックボックス動作はそのまま維持）
+const utilitySidebarToggle = document.getElementById('utilitySidebarToggle');
+const utilitySidebarContent = document.getElementById('utilitySidebarContent');
+if (utilitySidebarToggle && utilitySidebarContent) {
+    utilitySidebarToggle.addEventListener('click', () => {
+        const isOpening = utilitySidebarContent.hidden;
+        utilitySidebarContent.hidden = !isOpening;
+        utilitySidebarToggle.setAttribute('aria-expanded', String(isOpening));
+        utilitySidebarToggle.setAttribute(
+            'aria-label',
+            isOpening ? '表示設定を閉じる' : '表示設定を開く'
+        );
+        utilitySidebarToggle.textContent = isOpening ? '×' : '⚙';
+    });
+}

@@ -1,6 +1,6 @@
 # nicotwi物化 引き継ぎ資料
 
-物理化学部コンピュータ班で開発している、ニコニコ動画風の流れるコメント×Twitter風投稿を組み合わせたWebアプリです。
+物理化学部コンピュータ班で開発している、ニコニコ動画風の流れるコメント表示と、Twitter風の投稿タイムラインを組み合わせたWebアプリです。通常投稿に加えて、引用・いいね・投票・投稿再現などの機能を備えています。
 この資料は、nicotwiの管理・変更・引き継ぎを行えるようにするための資料です。
 引き継ぐ場合は、まず[代替わりチェックリスト](#代替わりチェックリスト自分で管理を始める時にやること)を上から順番に進めてください。
 ただし、nicotwiを運用する必要がない、または運用したくない場合でも、**公開ページのURLとリポジトリのURLは次の代へ引き継ぐようにしてください。** じゃないと悲しみます。
@@ -17,13 +17,16 @@
 8. [投稿を削除する方法](#投稿を削除する方法)
 9. [データのバックアップと復旧方法](#データのバックアップと復旧方法)
 10. [GitHubでの更新方法](#githubでの更新方法)
-11. [詰まりやすいポイント・今後の課題](#詰まりやすいポイント今後の課題)
+11. [現在の開発リポジトリとブランチ](#現在の開発リポジトリとブランチ)
+12. [詰まりやすいポイント・今後の課題](#詰まりやすいポイント今後の課題)
+13. [投票機能](#投票機能)
 
 ---
 
 ## プロジェクト概要
 
-- **何のアプリ？**: 投稿すると画面上をコメントが流れる（ニコニコ動画模倣）。そして投稿一覧がタイムライン形式でも見られる（Twitter模倣）。「nicotwi」の所以です。
+- **何のアプリ？**: 投稿すると画面上をコメントが流れる（ニコニコ動画模倣）。投稿一覧は「新着」「話題」のタイムラインで確認でき、投票専用タブもあります。
+- **主な機能**: 流れるコメント／中央固定コメント、名前・文字サイズ・文字色の設定、虹色・五千兆・ドット表示、投稿へのいいね、`#投稿番号`による引用、投稿ログ、投稿再現、読み上げ、リアルタイム同時接続数表示、投票の作成・投票・結果表示。
 - **技術構成**: HTML / CSS / JavaScript（フレームワークなし・素のJS）＋ Firebase Realtime Database（データの保存・同期）。ビルドツールは無く、ファイルをそのままGitHub Pagesで公開しているだけです。
 - **対象環境**: 主にChromebook・スマホのブラウザで動作確認しています。
 - **作り方**: 全てClaude（AI）とのバイブコーディングです。
@@ -103,7 +106,7 @@ GitHub・Firebaseとも、このアカウントを所有者・保管用として
 
 | ファイル | 役割 |
 |---|---|
-| `index.html` | HTML本体。ボタンやエリアの配置。 |
+| `index.html` | HTML本体。投稿フォーム、nicoArea、フィードタブ、投票タブ、再現パネルなどの配置。 |
 | `style.css` | 見た目全部（レイアウト・色・アニメーション・レスポンシブ対応）。 |
 | `fonts.css` | 埋め込みフォント（k8x12Sドットフォント・GenZenGothicKaiC）の`@font-face`定義。base64埋め込み。 |
 | `utils.js` | 共通の小さい関数（スパム判定、日付フォーマット、引用文字列処理、虹色/五千兆円のHTML生成など）。他のどのファイルからも呼ばれる、依存の少ないファイル。 |
@@ -112,13 +115,14 @@ GitHub・Firebaseとも、このアカウントを所有者・保管用として
 | `settings.js` | 投稿フォームのDOM要素、コメント形式/大きさ/色の切り替えUI、ログ表示ON/OFF、localStorageへの設定保存・復元。 |
 | `timeline.js` | 投稿カードの生成・更新・削除、引用カード生成、もっと見る/折りたたみ、投稿履歴のtxt書き出し機能。 |
 | `comments.js` | 流れる/中央固定コメントの表示、投稿再現（リプレイ）機能、読み上げ（Web Speech API）。 |
-| `firebase.js` | **Firebase関連は全部ここに集約**。初期化、匿名認証、投稿の取得・送信、👍の更新、同時接続管理、タブ切り替え（新着/話題）、バージョンチェック。 |
+| `firebase.js` | Firebaseの初期化、匿名認証、投稿の取得・送信、👍の更新、引用投稿の取得、同時接続管理、nicoAreaへのリアルタイム反映、フィードタブ切り替え、バージョンチェック。 |
+| `polls.js` | 投票の作成・投票・結果表示、nicoArea背景の投票UI、投票タブ（進行中／過去の結果）、投票の引用、終了時の結果発表表示。`firebase.js` が用意する `db` と `authReady` に依存するため、その後に読み込む。 |
 
 **読み込み順序（`index.html`の`<script>`タグの並び）**:
 ```
-utils.js → layout.js → ranking.js → settings.js → timeline.js → comments.js → firebase.js
+utils.js → layout.js → ranking.js → settings.js → timeline.js → comments.js → firebase.js → polls.js
 ```
-`firebase.js`が一番最後なのには理由があります。他の全ファイルの関数・変数を呼ぶ処理が最後にまとまっているため、先に全部読み込んでおく必要があるからです。**新しいJSファイルを増やす時は、どのファイルの何に依存するかを考えてから読み込み順を決めてください**（詰まりやすいポイントの章に実例があります）。
+`firebase.js` は Firebase の初期化と `authReady` を用意し、`polls.js` はそれらを使うため、`polls.js` を後ろに置きます。**新しいJSファイルを増やす時は、依存先より後に読み込むようにしてください。**
 
 ## 公開URLとリポジトリ
 
@@ -157,6 +161,8 @@ Realtime Databaseの中身は、だいたいこんな構造になっています
     totalTweetCount     … 累計投稿数（tweetNumberの元）
     current_version_key … 現在の最新バージョン番号（バージョンチェック機能用）
 /presence/{uid}/{connectionId} … 匿名UIDごとの接続レコード（切断時は自動削除）
+/polls/{pollId}         … 投票のタイトル・選択肢・設定・開始/終了時刻
+/pollVotes/{pollId}/{uid} … 匿名UIDごとの投票内容
 /usageStats/           … 旧利用状況監視機能で使用していたノード。現行アプリは参照しない
 ```
 
@@ -167,7 +173,6 @@ Realtime Database → ルール タブで編集します。現状のルールは
 ```json
     {
   "rules": {
-    ".read": true,
     ".write": false,
 
     "config": {
@@ -252,15 +257,17 @@ Realtime Database → ルール タブで編集します。現状のルールは
     },
 
     "presence": {
-      ".read": true,
+  ".read": true,
 
-      "$user_id": {
-        "$connection_id": {
-          ".write": true,
-          ".validate": "newData.isBoolean()"
-        }
-      }
-    },
+  "$user_id": {
+    ".write": "auth != null && auth.uid === $user_id",
+
+    "$connection_id": {
+      ".write": "auth != null && auth.uid === $user_id",
+      ".validate": "newData.isBoolean()"
+    }
+  }
+},
 
     "quoteIndex": {
       ".read": true,
@@ -280,8 +287,8 @@ Realtime Database → ルール タブで編集します。現状のルールは
     },
 
     "usageStats": {
-      ".read": true,
-      ".write": true
+      ".read": false,
+      ".write": false
     }
   }
 }
@@ -353,9 +360,79 @@ Firebaseの無料プラン（Sparkプラン）には読み取り・書き込み�
 - ブラウザ側もキャッシュが残っていて古い表示のままになることがあります。変わらない時は、ハード再読み込み（Chromebookなら Shift+更新ボタン、PCなら Ctrl+Shift+R）を試してください。
 - それでも変わらない場合は、実際にコミットが反映されているか（GitHub上でファイルの中身を直接確認）を先に疑ってください。
 
+## 現在の開発リポジトリとブランチ
+
+この作業で更新している開発リポジトリは [kumasoutakun-dotcom/nicotwibukka](https://github.com/kumasoutakun-dotcom/nicotwibukka)、作業ブランチは `codex-connector-test` です。既存の公開URL・Firebaseプロジェクトの所有者情報は、実際のGitHub Pages設定やFirebaseコンソールと照合してから変更してください。リポジトリ名が変わっても、GitHub Pagesの公開URLが自動で同じ名前に変わるとは限りません。
+
+### Codespacesで変更を取り込む
+
+GitHub上でこのブランチにコミットした変更を、Codespacesの作業環境に反映するには、Codespacesのターミナルで次を実行します。
+
+```bash
+git pull origin codex-connector-test
+```
+
+GitHub上のコミットとCodespacesの作業ツリーは別です。pull後にブラウザのプレビューを再読み込みしてください。GitHub Pagesで公開している場合は、Pagesの公開元ブランチとデプロイ状況も別途確認してください。
+
 ## 詰まりやすいポイント・今後の課題
 
-- JSファイルの読み込み順（`utils.js → layout.js → ranking.js → settings.js → timeline.js → comments.js → firebase.js`）を変えると壊れます。
+- JSファイルの読み込み順（`utils.js → layout.js → ranking.js → settings.js → timeline.js → comments.js → firebase.js → polls.js`）を変えると壊れます。特に`polls.js`はFirebase初期化後に読み込む必要があります。
 - Firebaseのルールで`"$other": { ".validate": false }`が設定されているため、投稿データに新しいフィールドを追加する時はルール側にも`.validate`を追加しないと保存できません。
 - バージョンチェック機能（`config/current_version_key`）があるので、コードを大きく更新した際は`firebase.js`内の`THIS_HTML_VERSION_KEY`もあわせて更新してください。
 - 分からないことがあれば、まずこのファイルとGitHubのコミット履歴（`git log`）、各JSファイル内のコメントを確認してください。
+
+
+## 投票機能
+
+投票機能は `polls.js` が担当し、Firebase Realtime Database の `/polls` と `/pollVotes` を使用します。`firebase.js` の後に読み込まれ、Firebaseの匿名認証完了後に監視を開始します。
+
+### 現在の仕様
+
+- 投稿フォームに入力した名前を投票作成者名として使用します。名前が空欄の場合は作成できません。
+- タイトルは最大80文字、選択肢は2〜6個（各最大40文字）です。
+- 投票期間は10秒、15秒、30秒、1分、2分、3分、4分、5分から選べます。
+- 単一選択／複数選択を選べます。複数選択の場合は選択肢を選んでからまとめて投票します。
+- 投票受付中は同じ匿名UIDから何度でも投票先を変更でき、最後に保存した内容が有効です。
+- 「投票前でも途中経過を表示」「選択肢ごとの票数を表示」を設定できます。
+- 得票率は波形（Wavy）の進捗表示と数値で表示します。
+- 進行中の投票は最大4件です。上限に達すると新規作成できません。
+- 投票タブには進行中の投票と過去の投票結果を分けて表示します。
+- 投票には通し番号が付き、番号を使って通常投稿から引用できます。投票そのものは通常の新着投稿カードには混ぜず、引用した通常投稿は通常どおり表示します。
+- 投票終了時、票が入っていた投票はnicoArea上で約10秒間、結果発表を表示します。
+- 投票データ・票数・状態はRealtime Databaseの変更を監視して同期します。
+
+### 制限・注意点
+
+- 進行中4件の上限はクライアント側で確認しています。複数端末から完全に同時に作成された場合の厳密な排他制御は保証しません。
+- 過去の投票データはFirebaseから自動削除しません。
+- 投票者の名前やUIDを公開する機能ではありません。票数表示は選択肢ごとの投票数です。
+- 投票作成ボタンや投票タブの表示位置・見た目は `index.html` と `polls.js` に分散しています。変更時は両方を確認してください。
+
+### Realtime Databaseのデータ構造
+
+```
+/polls/{pollId}
+  title             … 投票タイトル
+  creatorName       … 投稿フォームの名前
+  choices           … 選択肢（2〜6件）
+  durationSeconds   … 投票時間（秒）
+  createdAt         … 作成時刻（Unix timeのミリ秒）
+  endsAt            … 終了予定時刻（Unix timeのミリ秒）
+  creatorUid        … 作成者の匿名Firebase UID
+  allowMultiple     … 複数選択を許可するか
+  showResults       … 投票前の途中経過を表示するか
+  showVoters        … 選択肢ごとの票数を表示するか
+  tweetNumber       … 投票の通し番号
+
+/pollVotes/{pollId}/{anonymousUid}
+  単一選択           … 選択肢番号（number）
+  複数選択           … 選択肢番号の配列（number[]）
+```
+
+### Firebase Security Rules
+
+投票データの必須フィールド・型・文字数、匿名認証UID、投票期限、投票先の範囲をRealtime Database Rulesで検証してください。受付中は本人の票の上書きを許可し、他人の票を変更できないようにします。単一選択の数値と複数選択の配列の両方を許可する必要があります。
+
+**重要:** Firebaseコンソールに設定されているルールが正本です。READMEやJavaScriptを変更してもFirebase側のSecurity Rulesは自動更新されません。ルールを変更した場合は、投票作成・単一選択・複数選択・投票先変更・期限切れ後の書き込み拒否を実機で確認してください。
+
+Realtime Database Rulesには子要素数を数える `numChildren()` はありません。ルール式に使用しないでください。

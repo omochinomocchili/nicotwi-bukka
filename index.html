@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-  <title>nicotwi物化 ver1.7.7</title>
+  <title>nicotwi物化 ver1.7.8</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Akshar:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 
@@ -15,19 +18,23 @@
         <div id="nicoArea">
             <div id="floatingCommentsWrapper"></div>
             
-            <div id="toggleLogDisplayContainer">
-                <input type="checkbox" id="toggleLogDisplayCheckbox">
-                <label for="toggleLogDisplayCheckbox">投稿ログ表示</label>
-            </div>
-
-            <div id="toggleSpeechContainer">
-                <input type="checkbox" id="toggleSpeechCheckbox">
-                <label for="toggleSpeechCheckbox">🔊 読み上げ</label>
-            </div>
-            <div id="toggleRainbowContainer">
-                <input type="checkbox" id="toggleRainbowCheckbox">
-                <label for="toggleRainbowCheckbox">🌈 虹色アニメ</label>
-            </div>
+            <aside id="utilitySidebar" class="utility-sidebar">
+                <button type="button" id="utilitySidebarToggle" aria-expanded="false" aria-controls="utilitySidebarContent" aria-label="表示設定を開く">⚙</button>
+                <div id="utilitySidebarContent" class="utility-sidebar-content" hidden>
+                    <div id="toggleLogDisplayContainer">
+                        <input type="checkbox" id="toggleLogDisplayCheckbox">
+                        <label for="toggleLogDisplayCheckbox">投稿ログ表示</label>
+                    </div>
+                    <div id="toggleSpeechContainer">
+                        <input type="checkbox" id="toggleSpeechCheckbox">
+                        <label for="toggleSpeechCheckbox">🔊 読み上げ</label>
+                    </div>
+                    <div id="toggleRainbowContainer">
+                        <input type="checkbox" id="toggleRainbowCheckbox">
+                        <label for="toggleRainbowCheckbox">🌈 虹色アニメ</label>
+                    </div>
+                </div>
+            </aside>
             
             <div id="logContainer"></div>
         </div>
@@ -93,8 +100,8 @@
 
                     <input type="hidden" id="parentKey" value="">
                     <span class="button-group">
-                        <button type="button" id="clearInputBtn" onclick="(function(){ document.getElementById('comment').value=''; document.getElementById('comment_part1').value=''; document.getElementById('comment_part2').value=''; const p=document.getElementById('quotePreviewContainer'); if(p){p.style.display='none'; p.innerHTML='';} })()">クリア</button>
                         <button type="submit">投稿</button>
+                        <button type="button" id="clearInputBtn" onclick="(function(){ document.getElementById('comment').value=''; document.getElementById('comment_part1').value=''; document.getElementById('comment_part2').value=''; const p=document.getElementById('quotePreviewContainer'); if(p){p.style.display='none'; p.innerHTML='';} })()">クリア</button>
                     </span>
                 </div>
             </form>
@@ -112,8 +119,10 @@
             <div id="feedTabs">
                 <button type="button" id="tabNewBtn" class="feed-tab active-tab" onclick="switchFeedTab('new')">新着</button>
                 <button type="button" id="tabTrendBtn" class="feed-tab" onclick="switchFeedTab('trend')">話題</button>
+                <button type="button" id="tabPollBtn" class="feed-tab" onclick="switchFeedTab('polls')">投票</button>
             </div>
             <div id="tweetStream"></div>
+            <div id="pollTabContent" hidden></div>
             <div id="allUsers">
                 <h3>直近100件投稿数ランキング (全投稿者)</h3>
                 <ul id="allUserList"></ul>
@@ -185,5 +194,6 @@
 <script src="timeline.js"></script>
 <script src="comments.js"></script>
 <script src="firebase.js"></script>
+<script src="polls.js"></script>
 </body>
 </html>

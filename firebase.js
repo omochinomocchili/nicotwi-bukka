@@ -27,7 +27,7 @@
   // --- バージョンチェック関連の追加 ---
   const VERSION_CONFIG_REF = db.ref('config/current_version_key'); // Firebase上のバージョンキーのパス
 
-  const THIS_HTML_VERSION_KEY = "v1.7.7"; // <-- ここ
+  const THIS_HTML_VERSION_KEY = "v1.7.8"; // <-- ここ
   let isCurrentVersion = false; // 現在のHTMLが最新バージョンかどうかを示すフラグ
   // --- ここまで ---
   let tweetsQueryRef = null;
@@ -75,6 +75,37 @@ nicknameInput.addEventListener('input', (e) => {
     // ユーザー名をlocalStorageに保存するだけ
     localStorage.setItem('userName', e.target.value);
 });
+
+ 
+// 投稿フォームの入力文字も、選択中の投稿カラー／フォントに合わせてプレビューする。
+// 投稿フォーム内の文字色は常に黒にし、投稿時のフォント設定との一致は維持する。
+function updateCommentInputAppearance() {
+    const colorMode = predefinedColorSelect.value;
+    const inputs = [
+        document.getElementById('comment'),
+        document.getElementById('comment_part1'),
+        document.getElementById('comment_part2')
+    ].filter(Boolean);
+
+    inputs.forEach(input => {
+        input.classList.remove('comment-input-rainbow');
+        input.style.color = '#000000';
+        input.style.webkitTextFillColor = '#000000';
+        input.style.backgroundImage = 'none';
+        input.style.backgroundClip = 'border-box';
+        input.style.webkitBackgroundClip = 'border-box';
+        input.style.fontFamily = colorMode === 'dot'
+            ? "'k8x12S', sans-serif"
+            : colorMode === 'split_custom'
+                ? "serif"
+                : "'Akshar', 'GenZenGothicKaiC', sans-serif";
+        input.style.fontWeight = colorMode === 'split_custom' ? '900' : 'normal';
+        input.style.fontStyle = colorMode === 'split_custom' ? 'italic' : 'normal';
+    });
+}
+predefinedColorSelect.addEventListener('change', updateCommentInputAppearance);
+commentColorPicker.addEventListener('input', updateCommentInputAppearance);
+updateCommentInputAppearance();
 
      // --- インターネット接続監視ロジック ---
 function updateConnectionStatus() {
@@ -397,10 +428,19 @@ if (predefinedColorSelect.value === 'rainbow') {
           const indexSnap = await db.ref('quoteIndex/' + quoteNumber).once('value');
           const quotedKey = indexSnap.val();
           if (!quotedKey) return null; // quoteIndexに無い（移行前の古い投稿など）
+          // 投票は quoteIndex に poll:<pollId> として保存されている
+          if (typeof quotedKey === 'string' && quotedKey.startsWith('poll:')) {
+              const pollId = quotedKey.slice(5);
+              const pollSnap = await db.ref('polls/' + pollId).once('value');
+              const pollData = pollSnap.val();
+              if (!pollData) return null;
+              const voteSnap = await db.ref('pollVotes/' + pollId).once('value');
+              return { key: pollId, data: pollData, type: 'poll', votes: voteSnap.val() || {} };
+          }
           const tweetSnap = await db.ref('tweets/' + quotedKey).once('value');
           const tweetData = tweetSnap.val();
           if (!tweetData) return null;
-          return { key: quotedKey, data: tweetData };
+          return { key: quotedKey, data: tweetData, type: 'tweet' };
       } catch (e) {
           console.error('引用元投稿の取得に失敗しました:', e);
           return null;
@@ -412,9 +452,9 @@ if (predefinedColorSelect.value === 'rainbow') {
     showLoading('読み込み中…');
     db.ref('tweets').off(); 
 
-    if (toggleLogDisplayCheckbox.checked) { 
-      tweetStream.innerHTML = ''; 
-    }
+    // タブ再読込時は古いDOMを必ず破棄し、取得した直近100件を描き直す。
+    tweetStream.innerHTML = '';
+    tweetDomCache.clear();
     userCounts = {}; 
     userFirstTweetTime = {}; 
     activeFloatingComments.forEach(comment => comment.element.remove());
@@ -424,13 +464,22 @@ if (predefinedColorSelect.value === 'rainbow') {
     allTweets = {}; 
 
     try {
+        const pollsSnapshot = await db.ref('polls').once('value');
+        const pollRecords = pollsSnapshot.val() || {};
+        window.pollTweetNumbers = new Set(
+            Object.values(pollRecords).map(poll => Number(poll && poll.tweetNumber))
+              .filter(number => Number.isFinite(number) && number > 0)
+        );
         const snapshot = await db.ref('tweets').orderByKey().limitToLast(100).once('value');
         
 
         const data = snapshot.val();
         if (data) {
-            // 初期ロード時は全データを一旦allTweetsに格納
-            Object.assign(allTweets, data);
+            // 投票レコードを新着投稿一覧のキャッシュにも混ぜない
+            const timelineData = Object.fromEntries(
+                Object.entries(data).filter(([, tweet]) => !isPollStreamData(tweet))
+            );
+            Object.assign(allTweets, timelineData);
 
             // config/totalTweetCount が未設定の場合、既存ツイートの最大tweetNumberで初期化
             const totalCountSnapshot = await totalTweetCountRef.once('value');
@@ -451,7 +500,12 @@ if (predefinedColorSelect.value === 'rainbow') {
             // DocumentFragmentに一時的にappendして最後にまとめてDOMに追加
             sortedKeysAscending.forEach((key, index) => {
                 const tweet = allTweets[key];
-                appendTweetToStream(key, tweet, index + 1, false);
+                try {
+                    appendTweetToStream(key, tweet, index + 1, false);
+                } catch (renderError) {
+                    // 1件の古い／不正なレコードで残り99件の描画まで中断しない。
+                    console.error('投稿カードの描画をスキップしました:', key, renderError, tweet);
+                }
             });
             // ※ appendTweetToStreamがtweetStreamに直接appendするため
             // Fragment化は構造上困難。代わりにrAFで非同期描画に分散。
@@ -483,9 +537,59 @@ if (predefinedColorSelect.value === 'rainbow') {
   let currentFeedTab = 'new'; // 'new' | 'trend'
   let likedTweetsQueryRef = null;
 
+  // nicoArea専用の投稿監視。フィードタブ切替で止めず、どのタブでも新規投稿を流す。
+  let nicoAreaTweetQueryRef = null;
+  let nicoAreaListenerInitialized = false;
+
+  async function setupNicoAreaRealtimeListener() {
+      if (nicoAreaListenerInitialized) return;
+      nicoAreaListenerInitialized = true;
+
+      try {
+          // 現在の最新キーを基準にし、過去の投稿を再表示せず新規分だけ監視する。
+          const latestSnapshot = await db.ref('tweets').orderByKey().limitToLast(1).once('value');
+          let lastKey = null;
+          latestSnapshot.forEach(child => { lastKey = child.key; });
+
+          const query = lastKey
+              ? db.ref('tweets').orderByKey().startAfter(lastKey)
+              : db.ref('tweets').orderByKey();
+          nicoAreaTweetQueryRef = query;
+
+          query.on('child_added', async snapshot => {
+              const key = snapshot.key;
+              const data = snapshot.val();
+              if (!data || isPollStreamData(data)) return;
+
+              try {
+                  const displayText = await buildFloatingTextWithQuote(data);
+                  if (data.type === 'center_fixed') {
+                      showCenterFixedComment(
+                          key, displayText, data.color, data.timestamp, false, data.size || 'medium'
+                      );
+                  } else {
+                      showFloatingComment(
+                          key, displayText, data.color, data.timestamp, false, data.size || 'medium'
+                      );
+                  }
+              } catch (error) {
+                  console.error('nicoAreaへの新規投稿表示に失敗しました:', error);
+              }
+          }, error => {
+              console.error('nicoArea投稿監視でエラー:', error);
+          });
+      } catch (error) {
+          nicoAreaListenerInitialized = false;
+          console.error('nicoArea投稿監視の開始に失敗しました:', error);
+      }
+  }
+
   function stopLiveTweetListener() {
-      db.ref('tweets').off();
+      // ルート参照全体をoffすると他用途の監視まで解除するため、
+      // フィード専用のクエリ監視だけを解除する。
       if (tweetsQueryRef) { tweetsQueryRef.off(); tweetsQueryRef = null; }
+      db.ref('tweets').off('child_changed');
+      db.ref('tweets').off('child_removed');
   }
 
   function stopTrendingLiveListener() {
@@ -496,11 +600,19 @@ if (predefinedColorSelect.value === 'rainbow') {
   async function switchFeedTab(tab) {
       if (tab === currentFeedTab) return;
       currentFeedTab = tab;
+      if (typeof renderUserStats === 'function') renderUserStats();
 
       const tabNewBtn = document.getElementById('tabNewBtn');
       const tabTrendBtn = document.getElementById('tabTrendBtn');
+      const tabPollBtn = document.getElementById('tabPollBtn');
+      const pollTabContent = document.getElementById('pollTabContent');
+      const twiArea = document.getElementById('twiArea');
       if (tabNewBtn) tabNewBtn.classList.toggle('active-tab', tab === 'new');
       if (tabTrendBtn) tabTrendBtn.classList.toggle('active-tab', tab === 'trend');
+      if (tabPollBtn) tabPollBtn.classList.toggle('active-tab', tab === 'polls');
+      if (pollTabContent) pollTabContent.hidden = tab !== 'polls';
+      if (twiArea) twiArea.classList.toggle('polls-tab-active', tab === 'polls');
+      if (tweetStream) tweetStream.style.display = tab === 'polls' ? 'none' : '';
 
       stopLiveTweetListener();
       stopTrendingLiveListener();
@@ -508,10 +620,11 @@ if (predefinedColorSelect.value === 'rainbow') {
       tweetDomCache.clear();
       allTweets = {};
 
+      if (tab === 'polls') return;
       if (tab === 'new') {
           await loadInitialTweetsAndMonitorChanges();
           setupRealtimeListeners();
-      } else {
+      } else if (tab === 'trend') {
           await loadTrendingTweets();
           setupTrendingRealtimeListeners();
       }
@@ -521,8 +634,17 @@ if (predefinedColorSelect.value === 'rainbow') {
   async function loadTrendingTweets() {
       showLoading('読み込み中…');
       try {
+          const pollsSnapshot = await db.ref('polls').once('value');
+          const pollRecords = pollsSnapshot.val() || {};
+          window.pollTweetNumbers = new Set(
+              Object.values(pollRecords).map(poll => Number(poll && poll.tweetNumber))
+                .filter(number => Number.isFinite(number) && number > 0)
+          );
           const snapshot = await db.ref('likedTweets').orderByKey().limitToLast(100).once('value');
-          const data = snapshot.val() || {};
+          const rawData = snapshot.val() || {};
+          const data = Object.fromEntries(
+              Object.entries(rawData).filter(([, tweet]) => !isPollStreamData(tweet))
+          );
           Object.assign(allTweets, data);
           Object.keys(data).forEach((key, index) => {
               appendTweetToStream(key, data[key], index + 1, false);
@@ -549,6 +671,7 @@ if (predefinedColorSelect.value === 'rainbow') {
           if (currentFeedTab !== 'trend') return;
           const key = snapshot.key;
           const data = snapshot.val();
+          if (isPollStreamData(data)) return;
           allTweets[key] = data;
           appendTweetToStream(key, data, null, false);
 
@@ -571,6 +694,11 @@ if (predefinedColorSelect.value === 'rainbow') {
           if (currentFeedTab !== 'trend') return;
           const key = snapshot.key;
           const data = snapshot.val();
+          if (isPollStreamData(data)) {
+              removeTweetFromDOMAndMaps(key);
+              delete allTweets[key];
+              return;
+          }
           allTweets[key] = data;
           const cachedDiv = tweetDomCache.get(key);
           if (cachedDiv) {
@@ -601,9 +729,10 @@ if (predefinedColorSelect.value === 'rainbow') {
   function setupRealtimeListeners() {
     console.log("setupRealtimeListeners が実行されました。");
 
-    // すべてのリスナーを一度オフにする
-    db.ref('tweets').off(); // child_changed, child_removed をオフ
-    if (tweetsQueryRef) { tweetsQueryRef.off(); tweetsQueryRef = null; } // child_addedクエリをオフ
+    // フィード用リスナーだけを解除し、nicoArea専用クエリは維持する。
+    db.ref('tweets').off('child_changed');
+    db.ref('tweets').off('child_removed');
+    if (tweetsQueryRef) { tweetsQueryRef.off(); tweetsQueryRef = null; }
     db.ref('presence').off('value');
 
     if (!isCurrentVersion) {
@@ -622,6 +751,7 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       const key = snapshot.key;
       const data = snapshot.val();
+      if (isPollStreamData(data)) return;
       allTweets[key] = data;
 
       appendTweetToStream(key, data, null, true);
@@ -656,6 +786,11 @@ if (predefinedColorSelect.value === 'rainbow') {
 
       const key = snapshot.key;
       const data = snapshot.val();
+      if (isPollStreamData(data)) {
+          removeTweetFromDOMAndMaps(key);
+          delete allTweets[key];
+          return;
+      }
       allTweets[key] = data; // allTweets の既存ツイートを更新
 
 
@@ -765,6 +900,7 @@ const matched = (firebaseVersionKey === THIS_HTML_VERSION_KEY);
                 try {
                     await loadInitialTweetsAndMonitorChanges();
                     setupRealtimeListeners();
+                    setupNicoAreaRealtimeListener();
                 } catch (error) {
                     console.error("初期化に失敗しました:", error);
                     setFormEnabled(false);
